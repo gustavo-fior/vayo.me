@@ -7,22 +7,11 @@ import { capitalizeFirstLetter } from "./capitalizeFirstLetter";
 import { getCommonFavicons, getWebsiteName } from "./getCommonFavicons";
 import { JSDOM } from "jsdom";
 
-// Add a simple in-memory cache
-const metadataCache: Record<string, BookmarkMetadata & { timestamp: number }> = {};
-const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours
-
 export const getBookmarkMetadata = async (
   url: string,
   options?: RequestInit
 ): Promise<BookmarkMetadata> => {
   try {
-    // Check if we have a valid cached response
-    const now = Date.now();
-    if (metadataCache[url] && now - metadataCache[url].timestamp < CACHE_TTL) {
-      const { timestamp, ...metadata } = metadataCache[url];
-      return metadata;
-    }
-
     const response = await fetch(
       url,
       options ?? {
@@ -76,16 +65,12 @@ export const getBookmarkMetadata = async (
         faviconUrl = "/images/logo.png";
       }
 
-      const result = {
+      return {
         title,
         faviconUrl,
         ogImageUrl,
         description,
       };
-
-      // Cache the result
-      metadataCache[url] = { ...result, timestamp: Date.now() };
-      return result;
     }
 
     const html = await response.text();
@@ -133,16 +118,13 @@ export const getBookmarkMetadata = async (
 
     const description = getOgDescription(url, document);
 
-    const result = {
+
+    return {
       title,
       faviconUrl,
       ogImageUrl,
       description
     };
-
-    // Cache the result
-    metadataCache[url] = { ...result, timestamp: Date.now() };
-    return result;
   } catch (error) {
     console.error("Error fetching page metadata:", error);
     return {

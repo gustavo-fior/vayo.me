@@ -1,4 +1,4 @@
-import { type Bookmark, type Folder } from "@prisma/client";
+import { type Bookmark } from "@prisma/client";
 import { motion } from "framer-motion";
 import { useAtom } from "jotai";
 import { type GetServerSideProps } from "next";
@@ -58,37 +58,14 @@ export default function Bookmarks() {
     },
     {
       enabled: !!session.data?.user.id,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 10, // 10 minutes
       onSuccess: (data) => {
         if (data && data?.length > 0) {
           setFolders(data);
 
           if (!currentFolder) {
             setCurrentFolder(data[0] ?? null);
-            // We'll fetch bookmarks separately, don't set them here
-            // setBookmarks(data[0]?.bookmarks ?? null);
+            setBookmarks(data[0]?.bookmarks ?? null);
           }
-        }
-      },
-    }
-  );
-
-  // Initial bookmarks fetch for the current folder
-  const initialBookmarksFetch = api.bookmarks.findByFolderId.useQuery(
-    {
-      folderId: String(currentFolder?.id),
-      page: 1,
-    },
-    {
-      enabled: !!currentFolder,
-      staleTime: 1000 * 60 * 2, // 2 minutes
-      cacheTime: 1000 * 60 * 5, // 5 minutes
-      onSuccess: (data) => {
-        if (data?.bookmarks) {
-          // Replace bookmarks for initial fetch
-          setBookmarks(data.bookmarks);
-          setTotalBookmarks(data.totalElements);
         }
       },
     }
@@ -101,8 +78,6 @@ export default function Bookmarks() {
     },
     {
       enabled: !!currentFolder && inputUrlDebounced.length > 0,
-      staleTime: 1000 * 30, // 30 seconds for search results
-      cacheTime: 1000 * 60, // 1 minute
       onSuccess: (data) => {
         if (data?.bookmarks) {
           setFilteredBookmarks(data.bookmarks);
@@ -118,9 +93,7 @@ export default function Bookmarks() {
       page: currentPage,
     },
     {
-      enabled: !!currentFolder && currentPage > 1, // Only fetch on page > 1, initial fetch handled separately
-      staleTime: 1000 * 60 * 2, // 2 minutes
-      cacheTime: 1000 * 60 * 5, // 5 minutes
+      enabled: !!currentFolder,
       onSuccess: (data) => {
         if (data?.bookmarks) {
           setBookmarks((prevBookmarks) => {
@@ -322,15 +295,6 @@ export default function Bookmarks() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputUrl]);
-
-  // Handle folder change
-  const handleFolderChange = useCallback((folder: Folder) => {
-    setCurrentFolder(folder);
-    setCurrentPage(1);
-    setFilteredBookmarks(null);
-    setBookmarks(null); // Clear bookmarks to show loading state
-    setInputUrl("");
-  }, []);
 
   return (
     <>

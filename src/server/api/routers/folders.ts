@@ -77,22 +77,21 @@ export const foldersRouter = createTRPCRouter({
               bookmarks: true,
             },
           },
-          // Don't include full bookmarks, just get counts
-          // bookmarks: {
-          //   orderBy: {
-          //     createdAt: "desc",
-          //   },
-          //   select: {
-          //     id: true,
-          //     url: true,
-          //     title: true,
-          //     faviconUrl: true,
-          //     ogImageUrl: true,
-          //     createdAt: true,
-          //   },
-          //   skip: 0,
-          //   take: 35,
-          // },
+          bookmarks: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            select: {
+              id: true,
+              url: true,
+              title: true,
+              faviconUrl: true,
+              ogImageUrl: true,
+              createdAt: true,
+            },
+            skip: 0,
+            take: 35,
+          },
         },
       });
     }),
