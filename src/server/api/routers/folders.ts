@@ -90,7 +90,7 @@ export const foldersRouter = createTRPCRouter({
               createdAt: true,
             },
             skip: 0,
-            take: 35,
+            take: 15,
           },
         },
       });
