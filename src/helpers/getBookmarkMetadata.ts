@@ -18,15 +18,8 @@ export const getBookmarkMetadata = async (
   try {
     // Check if we have a valid cached response
     const now = Date.now();
-    const cachedData = metadataCache[url];
-    
-    if (
-      cachedData &&
-      cachedData.timestamp &&
-      now - cachedData.timestamp < CACHE_TTL
-    ) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { timestamp, ...metadata } = cachedData;
+    if (metadataCache[url] && now - metadataCache[url].timestamp < CACHE_TTL) {
+      const { timestamp, ...metadata } = metadataCache[url];
       return metadata;
     }
 
