@@ -62,67 +62,106 @@ export const bookmarksRouter = createTRPCRouter({
     )
     .query(async ({ input, ctx }) => {
       if (input.folderId) {
-        const bookmarks = input.page
-          ? await ctx.prisma.bookmark.findMany({
-              where: {
-                folderId: input.folderId,
-              },
-              orderBy: {
-                createdAt: "desc",
-              },
-              select: {
-                id: true,
-                url: true,
-                title: true,
-                faviconUrl: true,
-                ogImageUrl: true,
-                createdAt: true,
-              },
-              skip: input.page ? (input.page - 1) * 35 : 0,
-              take: 35,
-            })
-          : await ctx.prisma.bookmark.findMany({
-              where: {
-                folderId: input.folderId,
-                OR: [
-                  {
-                    title: {
-                      contains: input.search,
-                      mode: "insensitive",
-                    },
+        // Get total count first, to avoid counting on every request
+        let totalElements = 0;
+        
+        if (!input.search) {
+          // Only count if not searching - more efficient
+          totalElements = await ctx.prisma.bookmark.count({
+            where: {
+              folderId: input.folderId,
+            },
+          });
+        }
+        
+        let bookmarks;
+        
+        if (input.search) {
+          // Search query
+          bookmarks = await ctx.prisma.bookmark.findMany({
+            where: {
+              folderId: input.folderId,
+              OR: [
+                {
+                  title: {
+                    contains: input.search,
+                    mode: "insensitive",
                   },
-                  {
-                    url: {
-                      contains: input.search,
-                      mode: "insensitive",
-                    },
+                },
+                {
+                  url: {
+                    contains: input.search,
+                    mode: "insensitive",
                   },
-                  {
-                    description: {
-                      contains: input.search,
-                      mode: "insensitive",
-                    },
+                },
+                {
+                  description: {
+                    contains: input.search,
+                    mode: "insensitive",
                   },
-                ],
-              },
-              orderBy: {
-                createdAt: "desc",
-              },
-              select: {
-                id: true,
-                url: true,
-                title: true,
-                faviconUrl: true,
-                ogImageUrl: true,
-                createdAt: true,
-              },
-            });
-
-        const totalElements = await ctx.prisma.bookmark.count({
-          where: {
-            folderId: input.folderId,
-          },
-        });
+                },
+              ],
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            select: {
+              id: true,
+              url: true,
+              title: true,
+              faviconUrl: true,
+              ogImageUrl: true,
+              createdAt: true,
+            },
+          });
+          
+          // Count the total elements with the search filter applied
+          totalElements = await ctx.prisma.bookmark.count({
+            where: {
+              folderId: input.folderId,
+              OR: [
+                {
+                  title: {
+                    contains: input.search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  url: {
+                    contains: input.search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  description: {
+                    contains: input.search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          });
+        } else {
+          // Normal pagination query
+          bookmarks = await ctx.prisma.bookmark.findMany({
+            where: {
+              folderId: input.folderId,
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            select: {
+              id: true,
+              url: true,
+              title: true,
+              faviconUrl: true,
+              ogImageUrl: true,
+              createdAt: true,
+            },
+            skip: input.page ? (input.page - 1) * 35 : 0,
+            take: 35,
+          });
+        }
 
         return {
           bookmarks,

@@ -42,6 +42,8 @@ export default function Bookmarks() {
     },
     {
       enabled: Boolean(folderId),
+      staleTime: 1000 * 60 * 10, // 10 minutes
+      cacheTime: 1000 * 60 * 30, // 30 minutes
       onSuccess: (data) => {
         if (data) {
           setBookmarks((prev) => {
@@ -73,6 +75,8 @@ export default function Bookmarks() {
     },
     {
       enabled: Boolean(folderId),
+      staleTime: 1000 * 60 * 60, // 1 hour
+      cacheTime: 1000 * 60 * 60 * 2, // 2 hours
     }
   );
 
