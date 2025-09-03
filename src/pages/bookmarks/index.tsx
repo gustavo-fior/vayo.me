@@ -13,6 +13,7 @@ import { Separator } from "~/components/Separator";
 import { SkeletonList } from "~/components/SkeletonList";
 import { Spinner } from "~/components/Spinner";
 import { ScrollAreaToTopButton } from "~/components/ScrollAreaToTopButton";
+import { ScrollFadeOverlay } from "~/components/ScrollFadeOverlay";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import {
   bookmarksAtom,
@@ -319,7 +320,7 @@ export default function Bookmarks() {
       <main className="relative min-h-screen w-full bg-[#e0e0e0] pt-8 dark:bg-[#111111]">
         <Header inputRef={inputRef} />
         <div className="flex flex-col items-center">
-          <div className="w-full px-2 sm:px-4 sm:w-[40rem] md:w-[48rem] md:px-0 lg:w-[50rem] overflow-hidden">
+          <div className="w-full overflow-hidden px-2 sm:w-[40rem] sm:px-4 md:w-[48rem] md:px-0 lg:w-[50rem]">
             <motion.form
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -419,51 +420,57 @@ export default function Bookmarks() {
               <Separator />
             </div>
 
-            <ScrollArea.Root className="h-[calc(100vh-200px)] overflow-hidden">
-              <ScrollArea.Viewport
-                ref={scrollAreaRef}
-                className="h-full w-full rounded"
-              >
-                <motion.ul>
-                  {!bookmarks && fetchBookmarks.isFetching && (
-                    <SkeletonList viewStyle={viewStyle} />
-                  )}
+            <div className="relative">
+              <ScrollArea.Root className="h-[calc(100vh-202px)] overflow-hidden">
+                <ScrollArea.Viewport
+                  ref={scrollAreaRef}
+                  className="h-full w-full"
+                >
+                  <motion.ul>
+                    {!bookmarks && fetchBookmarks.isFetching && (
+                      <SkeletonList viewStyle={viewStyle} />
+                    )}
 
-                  {bookmarks && bookmarks?.length > 0 && (
-                    <BookmarksList
-                      showMonths={showMonths}
-                      viewStyle={viewStyle}
-                      bookmarks={filteredBookmarks ?? bookmarks}
-                      handleDeleteBookmark={handleDeleteBookmark}
-                      isPrivatePage
-                    />
-                  )}
+                    {bookmarks && bookmarks?.length > 0 && (
+                      <BookmarksList
+                        showMonths={showMonths}
+                        viewStyle={viewStyle}
+                        bookmarks={filteredBookmarks ?? bookmarks}
+                        handleDeleteBookmark={handleDeleteBookmark}
+                        isPrivatePage
+                      />
+                    )}
 
-                  {(!folders || folders.length === 0) &&
-                    fetchFolders.isFetched &&
-                    !fetchFolders.isFetching && <CreateFirstFolder />}
+                    {(!folders || folders.length === 0) &&
+                      fetchFolders.isFetched &&
+                      !fetchFolders.isFetching && <CreateFirstFolder />}
 
-                  {totalBookmarks === 0 &&
-                    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-                    ((bookmarks && bookmarks.length === 0) ||
-                      (filteredBookmarks && filteredBookmarks.length === 0)) &&
-                    fetchBookmarks.isFetched &&
-                    fetchFolders.isFetched &&
-                    !isDuplicate &&
-                    folders &&
-                    folders?.length > 0 &&
-                    (!fetchBookmarsWithSearch.isFetching ||
-                      inputUrl.length === 0) &&
-                    !addBookmark.isLoading && <EmptyState />}
-                </motion.ul>
-              </ScrollArea.Viewport>
-              <ScrollArea.Scrollbar
-                className="bg-blackA3 hover:bg-blackA5 flex touch-none select-none p-0.5 transition-colors duration-[160ms] ease-out data-[orientation=horizontal]:h-2.5 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col"
-                orientation="vertical"
-              >
-                <ScrollArea.Thumb className="bg-mauve10 relative flex-1 rounded-[10px] before:absolute before:left-1/2 before:top-1/2 before:h-full before:min-h-[44px] before:w-full before:min-w-[44px] before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']" />
-              </ScrollArea.Scrollbar>
-            </ScrollArea.Root>
+                    {totalBookmarks === 0 &&
+                      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+                      ((bookmarks && bookmarks.length === 0) ||
+                        (filteredBookmarks &&
+                          filteredBookmarks.length === 0)) &&
+                      fetchBookmarks.isFetched &&
+                      fetchFolders.isFetched &&
+                      !isDuplicate &&
+                      folders &&
+                      folders?.length > 0 &&
+                      (!fetchBookmarsWithSearch.isFetching ||
+                        inputUrl.length === 0) &&
+                      !addBookmark.isLoading && <EmptyState />}
+                  </motion.ul>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar
+                  className="bg-blackA3 hover:bg-blackA5 flex touch-none select-none p-0.5 transition-colors duration-[160ms] ease-out data-[orientation=horizontal]:h-2.5 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col"
+                  orientation="vertical"
+                >
+                  <ScrollArea.Thumb className="bg-mauve10 relative flex-1 rounded-[10px] before:absolute before:left-1/2 before:top-1/2 before:h-full before:min-h-[44px] before:w-full before:min-w-[44px] before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']" />
+                </ScrollArea.Scrollbar>
+              </ScrollArea.Root>
+              <ScrollFadeOverlay position="top" />
+              <ScrollFadeOverlay position="bottom" />
+              <ScrollAreaToTopButton scrollAreaRef={scrollAreaRef} />
+            </div>
             <div className="flex justify-center pt-10 align-middle">
               {fetchBookmarks.isFetching &&
                 bookmarks &&
@@ -471,7 +478,6 @@ export default function Bookmarks() {
                 inputUrl.length === 0 &&
                 currentPage > 1 && <Spinner size="md" />}
             </div>
-            <ScrollAreaToTopButton scrollAreaRef={scrollAreaRef} />
           </div>
         </div>
       </main>

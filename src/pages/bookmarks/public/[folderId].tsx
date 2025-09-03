@@ -7,6 +7,7 @@ import { BookmarksList } from "~/components/BookmarksList";
 import { EmptyState } from "~/components/EmptyState";
 import { RectangleSkeleton } from "~/components/RectangleSkeleton";
 import { ScrollAreaToTopButton } from "~/components/ScrollAreaToTopButton";
+import { ScrollFadeOverlay } from "~/components/ScrollFadeOverlay";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Separator } from "~/components/Separator";
 import { ShareLinkButton } from "~/components/ShareLinkButton";
@@ -213,50 +214,54 @@ export default function Bookmarks() {
                 <Separator />
               </div>
 
-              <ScrollArea.Root className="h-[calc(100vh-8rem)]">
-                <ScrollArea.Viewport
-                  ref={scrollAreaRef}
-                  className="h-full w-full"
-                >
-                  {(folder?.isLoading || bookmarksQuery.isLoading) && (
-                    <SkeletonList viewStyle={viewStyle} />
-                  )}
-                  {folder?.data?.isShared && (
-                    <motion.div
-                      initial={false}
-                      animate={isOpen ? "open" : "closed"}
-                    >
-                      <motion.ul>
-                        {bookmarks && bookmarks.length > 0 && (
-                          <BookmarksList
-                            bookmarks={bookmarks}
-                            showMonths={false}
-                            viewStyle={viewStyle}
-                            isPrivatePage={false}
-                          />
-                        )}
-                        {bookmarks &&
-                          bookmarks.length === 0 &&
-                          !folder?.isLoading &&
-                          !bookmarksQuery.isLoading && <EmptyState />}
-                      </motion.ul>
-                    </motion.div>
-                  )}
-                  <div className="flex justify-center pb-2 pt-4 align-middle">
-                    {bookmarksQuery.isFetching &&
-                      bookmarks &&
-                      bookmarks?.length > 0 &&
-                      currentPage > 1 && <Spinner size="md" />}
-                  </div>
-                </ScrollArea.Viewport>
-                <ScrollArea.Scrollbar
-                  className="bg-blackA3 hover:bg-blackA5 flex touch-none select-none p-0.5 transition-colors duration-[160ms] ease-out data-[orientation=horizontal]:h-2.5 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col"
-                  orientation="vertical"
-                >
-                  <ScrollArea.Thumb className="bg-mauve10 relative flex-1 rounded-[10px] before:absolute before:left-1/2 before:top-1/2 before:h-full before:min-h-[44px] before:w-full before:min-w-[44px] before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']" />
-                </ScrollArea.Scrollbar>
-              </ScrollArea.Root>
-              <ScrollAreaToTopButton scrollAreaRef={scrollAreaRef} />
+              <div className="relative">
+                <ScrollArea.Root className="h-[calc(100vh-8rem)]">
+                  <ScrollArea.Viewport
+                    ref={scrollAreaRef}
+                    className="h-full w-full"
+                  >
+                    {(folder?.isLoading || bookmarksQuery.isLoading) && (
+                      <SkeletonList viewStyle={viewStyle} />
+                    )}
+                    {folder?.data?.isShared && (
+                      <motion.div
+                        initial={false}
+                        animate={isOpen ? "open" : "closed"}
+                      >
+                        <motion.ul>
+                          {bookmarks && bookmarks.length > 0 && (
+                            <BookmarksList
+                              bookmarks={bookmarks}
+                              showMonths={false}
+                              viewStyle={viewStyle}
+                              isPrivatePage={false}
+                            />
+                          )}
+                          {bookmarks &&
+                            bookmarks.length === 0 &&
+                            !folder?.isLoading &&
+                            !bookmarksQuery.isLoading && <EmptyState />}
+                        </motion.ul>
+                      </motion.div>
+                    )}
+                    <div className="flex justify-center pb-2 pt-4 align-middle">
+                      {bookmarksQuery.isFetching &&
+                        bookmarks &&
+                        bookmarks?.length > 0 &&
+                        currentPage > 1 && <Spinner size="md" />}
+                    </div>
+                  </ScrollArea.Viewport>
+                  <ScrollArea.Scrollbar
+                    className="bg-blackA3 hover:bg-blackA5 flex touch-none select-none p-0.5 transition-colors duration-[160ms] ease-out data-[orientation=horizontal]:h-2.5 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col"
+                    orientation="vertical"
+                  >
+                    <ScrollArea.Thumb className="bg-mauve10 relative flex-1 rounded-[10px] before:absolute before:left-1/2 before:top-1/2 before:h-full before:min-h-[44px] before:w-full before:min-w-[44px] before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']" />
+                  </ScrollArea.Scrollbar>
+                </ScrollArea.Root>
+                <ScrollFadeOverlay position="top" />
+                <ScrollFadeOverlay position="bottom" />
+                <ScrollAreaToTopButton scrollAreaRef={scrollAreaRef} />
+              </div>
             </div>
           </div>
         </div>
