@@ -12,6 +12,8 @@ import { Header } from "~/components/Header";
 import { Separator } from "~/components/Separator";
 import { SkeletonList } from "~/components/SkeletonList";
 import { Spinner } from "~/components/Spinner";
+import { ScrollAreaToTopButton } from "~/components/ScrollAreaToTopButton";
+import * as ScrollArea from "@radix-ui/react-scroll-area";
 import {
   bookmarksAtom,
   bookmarksFilteredAtom,
@@ -51,6 +53,7 @@ export default function Bookmarks() {
   const [showMonths] = useAtom(showMonthsAtom);
 
   const [folders] = useAtom(foldersAtom);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const fetchFolders = api.folders.findByUserId.useQuery(
     {
@@ -240,21 +243,27 @@ export default function Bookmarks() {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-        if (
-          bookmarks?.length !== totalBookmarks &&
-          !fetchBookmarks.isFetching
-        ) {
-          setCurrentPage((prevPage) => prevPage + 1);
+      const scrollArea = scrollAreaRef.current;
+      if (scrollArea) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollArea;
+        if (scrollTop + clientHeight >= scrollHeight - 100) {
+          if (
+            bookmarks?.length !== totalBookmarks &&
+            !fetchBookmarks.isFetching
+          ) {
+            setCurrentPage((prevPage) => prevPage + 1);
+          }
         }
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    const scrollArea = scrollAreaRef.current;
+    if (scrollArea) {
+      scrollArea.addEventListener("scroll", handleScroll);
+      return () => {
+        scrollArea.removeEventListener("scroll", handleScroll);
+      };
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookmarks?.length, totalBookmarks, fetchBookmarks.isFetching]);
 
@@ -301,17 +310,21 @@ export default function Bookmarks() {
       <Head>
         <title>{currentFolder?.name ?? "VAYØ"}</title>
         <link rel="icon" href={getFaviconForFolder(currentFolder)} />
-        <script defer src="https://cloud.umami.is/script.js" data-website-id="5f36385d-9b15-4127-925b-808fba9d75d3"></script>
+        <script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="5f36385d-9b15-4127-925b-808fba9d75d3"
+        ></script>
       </Head>
       <main className="relative min-h-screen w-full bg-[#e0e0e0] pt-8 dark:bg-[#111111]">
         <Header inputRef={inputRef} />
         <div className="flex flex-col items-center">
-          <div className="w-full  px-4 pb-32 sm:w-[40rem] md:w-[48rem] md:px-0 lg:w-[50rem]">
+          <div className="w-full px-2 sm:px-4 sm:w-[40rem] md:w-[48rem] md:px-0 lg:w-[50rem] overflow-hidden">
             <motion.form
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="relative mx-2.5 md:mt-8 mt-6 md:mx-12"
+              className="relative mx-2.5 mt-6 md:mx-12 md:mt-8"
               onSubmit={(e) => {
                 e.preventDefault();
 
@@ -406,38 +419,51 @@ export default function Bookmarks() {
               <Separator />
             </div>
 
-            <motion.ul>
-              {!bookmarks && fetchBookmarks.isFetching && (
-                <SkeletonList viewStyle={viewStyle} />
-              )}
+            <ScrollArea.Root className="h-[calc(100vh-200px)] overflow-hidden">
+              <ScrollArea.Viewport
+                ref={scrollAreaRef}
+                className="h-full w-full rounded"
+              >
+                <motion.ul>
+                  {!bookmarks && fetchBookmarks.isFetching && (
+                    <SkeletonList viewStyle={viewStyle} />
+                  )}
 
-              {bookmarks && bookmarks?.length > 0 && (
-                <BookmarksList
-                  showMonths={showMonths}
-                  viewStyle={viewStyle}
-                  bookmarks={filteredBookmarks ?? bookmarks}
-                  handleDeleteBookmark={handleDeleteBookmark}
-                  isPrivatePage
-                />
-              )}
+                  {bookmarks && bookmarks?.length > 0 && (
+                    <BookmarksList
+                      showMonths={showMonths}
+                      viewStyle={viewStyle}
+                      bookmarks={filteredBookmarks ?? bookmarks}
+                      handleDeleteBookmark={handleDeleteBookmark}
+                      isPrivatePage
+                    />
+                  )}
 
-              {(!folders || folders.length === 0) &&
-                fetchFolders.isFetched &&
-                !fetchFolders.isFetching && <CreateFirstFolder />}
+                  {(!folders || folders.length === 0) &&
+                    fetchFolders.isFetched &&
+                    !fetchFolders.isFetching && <CreateFirstFolder />}
 
-              {totalBookmarks === 0 &&
-                // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-                ((bookmarks && bookmarks.length === 0) ||
-                  (filteredBookmarks && filteredBookmarks.length === 0)) &&
-                fetchBookmarks.isFetched &&
-                fetchFolders.isFetched &&
-                !isDuplicate &&
-                folders &&
-                folders?.length > 0 &&
-                (!fetchBookmarsWithSearch.isFetching ||
-                  inputUrl.length === 0) &&
-                !addBookmark.isLoading && <EmptyState />}
-            </motion.ul>
+                  {totalBookmarks === 0 &&
+                    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+                    ((bookmarks && bookmarks.length === 0) ||
+                      (filteredBookmarks && filteredBookmarks.length === 0)) &&
+                    fetchBookmarks.isFetched &&
+                    fetchFolders.isFetched &&
+                    !isDuplicate &&
+                    folders &&
+                    folders?.length > 0 &&
+                    (!fetchBookmarsWithSearch.isFetching ||
+                      inputUrl.length === 0) &&
+                    !addBookmark.isLoading && <EmptyState />}
+                </motion.ul>
+              </ScrollArea.Viewport>
+              <ScrollArea.Scrollbar
+                className="bg-blackA3 hover:bg-blackA5 flex touch-none select-none p-0.5 transition-colors duration-[160ms] ease-out data-[orientation=horizontal]:h-2.5 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col"
+                orientation="vertical"
+              >
+                <ScrollArea.Thumb className="bg-mauve10 relative flex-1 rounded-[10px] before:absolute before:left-1/2 before:top-1/2 before:h-full before:min-h-[44px] before:w-full before:min-w-[44px] before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']" />
+              </ScrollArea.Scrollbar>
+            </ScrollArea.Root>
             <div className="flex justify-center pt-10 align-middle">
               {fetchBookmarks.isFetching &&
                 bookmarks &&
@@ -445,6 +471,7 @@ export default function Bookmarks() {
                 inputUrl.length === 0 &&
                 currentPage > 1 && <Spinner size="md" />}
             </div>
+            <ScrollAreaToTopButton scrollAreaRef={scrollAreaRef} />
           </div>
         </div>
       </main>

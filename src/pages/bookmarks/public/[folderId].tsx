@@ -2,11 +2,12 @@ import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookmarksList } from "~/components/BookmarksList";
 import { EmptyState } from "~/components/EmptyState";
 import { RectangleSkeleton } from "~/components/RectangleSkeleton";
-import { ScrollToTopButton } from "~/components/ScrollToTopButton";
+import { ScrollAreaToTopButton } from "~/components/ScrollAreaToTopButton";
+import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Separator } from "~/components/Separator";
 import { ShareLinkButton } from "~/components/ShareLinkButton";
 import { SkeletonList } from "~/components/SkeletonList";
@@ -34,6 +35,7 @@ export default function Bookmarks() {
   const [viewStyle, setViewStyle] = useState<"expanded" | "compact">("compact");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalBookmarks, setTotalBookmarks] = useState(0);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const bookmarksQuery = api.bookmarks.findByFolderId.useQuery(
     {
@@ -93,18 +95,27 @@ export default function Bookmarks() {
   // update page when scroll to bottom
   useEffect(() => {
     const handleScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-        if (bookmarks?.length !== totalBookmarks && !bookmarksQuery.isLoading) {
-          setCurrentPage((prevPage) => prevPage + 1);
+      const scrollArea = scrollAreaRef.current;
+      if (scrollArea) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollArea;
+        if (scrollTop + clientHeight >= scrollHeight - 10) {
+          if (
+            bookmarks?.length !== totalBookmarks &&
+            !bookmarksQuery.isLoading
+          ) {
+            setCurrentPage((prevPage) => prevPage + 1);
+          }
         }
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    const scrollArea = scrollAreaRef.current;
+    if (scrollArea) {
+      scrollArea.addEventListener("scroll", handleScroll);
+      return () => {
+        scrollArea.removeEventListener("scroll", handleScroll);
+      };
+    }
   }, [bookmarks?.length, totalBookmarks, bookmarksQuery.isLoading]);
 
   return (
@@ -122,111 +133,131 @@ export default function Bookmarks() {
           content="Looking for cool links? Check out this folder!"
         />
         <meta property="og:type" content="website" />
-        <meta
-          property="og:image"
-          content={`https://vayo.me/api/og`}
-        />
-        <script defer src="https://cloud.umami.is/script.js" data-website-id="5f36385d-9b15-4127-925b-808fba9d75d3"></script>
+        <meta property="og:image" content={`https://vayo.me/api/og`} />
+        <script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="5f36385d-9b15-4127-925b-808fba9d75d3"
+        ></script>
       </Head>
-      
-      <main className="flex min-h-screen w-full pb-32 flex-col items-center bg-[#e0e0e0] dark:bg-[#111111]">
-        <ScrollToTopButton />
 
-        <div className="w-full px-4 md:px-0 md:pt-16 pt-12 sm:w-[30rem] md:w-[40rem] lg:w-[50rem]">
-            <div className="flex flex-col md:items-center md:justify-between justify-start gap-8 px-4 align-middle font-semibold text-black dark:text-white md:flex-row md:gap-0">
-              {folder?.isLoading ? (
-                <motion.div
-                  key="folderNameLoading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="pt-2"
-                >
-                  <RectangleSkeleton />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="folderNameLoaded"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  {folder?.data?.isShared ? (
-                    <div className="flex gap-3 align-middle">
-                      <p className="text-2xl mb-1">{folder?.data?.icon}</p>
-                      <p className="text-2xl">{folder?.data?.name}</p>
-                    </div>
-                  ) : (
-                    <p className="text-2xl">🔒 This folder is private</p>
-                  )}
-                </motion.div>
-              )}
-              {folder?.data?.isShared && (
-                <div className="items-center gap-6 align-middle md:gap-2 hidden sm:flex">
+      <main className="relative min-h-screen w-full bg-[#e0e0e0] pt-8 dark:bg-[#111111]">
+        <div className="flex flex-col items-center">
+          <div className="w-full overflow-hidden px-2 sm:w-[30rem] sm:px-4 md:w-[40rem] md:px-0 lg:w-[50rem]">
+            <div className="pt-4 md:pt-8">
+              <div className="flex flex-col justify-start gap-8 px-4 align-middle font-semibold text-black dark:text-white md:flex-row md:items-center md:justify-between md:gap-0">
+                {folder?.isLoading ? (
                   <motion.div
-                    key="viewButtonLoaded"
+                    key="folderNameLoading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="pt-2"
+                  >
+                    <RectangleSkeleton />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="folderNameLoaded"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    <ViewButton
-                      viewStyle={viewStyle}
-                      handleChangeViewStyle={handleChangeViewStyle}
-                    />
+                    {folder?.data?.isShared ? (
+                      <div className="flex gap-3 align-middle">
+                        <p className="mb-1 text-2xl">{folder?.data?.icon}</p>
+                        <p className="text-2xl">{folder?.data?.name}</p>
+                      </div>
+                    ) : (
+                      <p className="text-2xl">🔒 This folder is private</p>
+                    )}
                   </motion.div>
-                  <motion.div
-                    key="themeButtonLoaded"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <ThemeButton
-                      theme={theme ?? ""}
-                      handleChangeTheme={handleChangeTheme}
-                    />
-                  </motion.div>
-                  <motion.div
-                    key="shareLinkButtonLoaded"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <ShareLinkButton folderId={folderId as string} />
-                  </motion.div>
-                </div>
-              )}
-            </div>
-
-          <div className={`mx-3 md:mt-4 mt-2`}>
-            <Separator />
-          </div>
-
-          {(folder?.isLoading || bookmarksQuery.isLoading) && (
-            <SkeletonList viewStyle={viewStyle} />
-          )}
-          {folder?.data?.isShared && (
-            <motion.div initial={false} animate={isOpen ? "open" : "closed"}>
-              <motion.ul>
-                {bookmarks && bookmarks.length > 0 && (
-                  <BookmarksList
-                    bookmarks={bookmarks}
-                    showMonths={false}
-                    viewStyle={viewStyle}
-                    isPrivatePage={false}
-                  />
                 )}
-                {bookmarks &&
-                  bookmarks.length === 0 &&
-                  !folder?.isLoading &&
-                  !bookmarksQuery.isLoading && <EmptyState />}
-              </motion.ul>
-            </motion.div>
-          )}
-          <div className="flex justify-center pt-10 align-middle">
-            {bookmarksQuery.isFetching &&
-              bookmarks &&
-              bookmarks?.length > 0 &&
-              currentPage > 1 && <Spinner size="md" />}
+                {folder?.data?.isShared && (
+                  <div className="hidden items-center gap-6 align-middle sm:flex md:gap-2">
+                    <motion.div
+                      key="viewButtonLoaded"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <ViewButton
+                        viewStyle={viewStyle}
+                        handleChangeViewStyle={handleChangeViewStyle}
+                      />
+                    </motion.div>
+                    <motion.div
+                      key="themeButtonLoaded"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <ThemeButton
+                        theme={theme ?? ""}
+                        handleChangeTheme={handleChangeTheme}
+                      />
+                    </motion.div>
+                    <motion.div
+                      key="shareLinkButtonLoaded"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <ShareLinkButton folderId={folderId as string} />
+                    </motion.div>
+                  </div>
+                )}
+              </div>
+
+              <div className={`mx-3 mt-2 md:mt-4`}>
+                <Separator />
+              </div>
+
+              <ScrollArea.Root className="h-[calc(100vh-8rem)]">
+                <ScrollArea.Viewport
+                  ref={scrollAreaRef}
+                  className="h-full w-full"
+                >
+                  {(folder?.isLoading || bookmarksQuery.isLoading) && (
+                    <SkeletonList viewStyle={viewStyle} />
+                  )}
+                  {folder?.data?.isShared && (
+                    <motion.div
+                      initial={false}
+                      animate={isOpen ? "open" : "closed"}
+                    >
+                      <motion.ul>
+                        {bookmarks && bookmarks.length > 0 && (
+                          <BookmarksList
+                            bookmarks={bookmarks}
+                            showMonths={false}
+                            viewStyle={viewStyle}
+                            isPrivatePage={false}
+                          />
+                        )}
+                        {bookmarks &&
+                          bookmarks.length === 0 &&
+                          !folder?.isLoading &&
+                          !bookmarksQuery.isLoading && <EmptyState />}
+                      </motion.ul>
+                    </motion.div>
+                  )}
+                  <div className="flex justify-center pb-2 pt-4 align-middle">
+                    {bookmarksQuery.isFetching &&
+                      bookmarks &&
+                      bookmarks?.length > 0 &&
+                      currentPage > 1 && <Spinner size="md" />}
+                  </div>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar
+                  className="bg-blackA3 hover:bg-blackA5 flex touch-none select-none p-0.5 transition-colors duration-[160ms] ease-out data-[orientation=horizontal]:h-2.5 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col"
+                  orientation="vertical"
+                >
+                  <ScrollArea.Thumb className="bg-mauve10 relative flex-1 rounded-[10px] before:absolute before:left-1/2 before:top-1/2 before:h-full before:min-h-[44px] before:w-full before:min-w-[44px] before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']" />
+                </ScrollArea.Scrollbar>
+              </ScrollArea.Root>
+              <ScrollAreaToTopButton scrollAreaRef={scrollAreaRef} />
+            </div>
           </div>
         </div>
       </main>
