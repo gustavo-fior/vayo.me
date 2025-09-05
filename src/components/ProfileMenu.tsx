@@ -27,6 +27,8 @@ import { Spinner } from "./Spinner";
 import { SunDimIcon } from "./icons/SunDimIcon";
 import { MoonIcon } from "./icons/MoonIcon";
 import { LogoutIcon } from "./icons/LogoutIcon";
+import { AlignVerticalIcon } from "./icons/AlignVerticalIcon";
+import { AlignCenterIcon } from "./icons/AlignCenterIcon";
 
 export const ProfileMenu = () => {
   const session = useSession();
@@ -194,13 +196,13 @@ export const ProfileMenu = () => {
                     value="compact"
                     className="flex h-5 w-6 items-center justify-center rounded data-[state=on]:bg-black/20 data-[state=on]:shadow-sm dark:data-[state=on]:bg-white/20"
                   >
-                    <HamburgerMenuIcon className="h-3 w-3 text-zinc-700 data-[state=on]:text-zinc-700 dark:text-gray-400 dark:data-[state=on]:text-zinc-700" />
+                    <AlignCenterIcon size={16} />
                   </ToggleGroup.Item>
                   <ToggleGroup.Item
                     value="expanded"
                     className="flex h-5 w-6 items-center justify-center rounded data-[state=on]:bg-black/20 data-[state=on]:shadow-sm dark:data-[state=on]:bg-white/20"
                   >
-                    <RowsIcon className="h-3 w-3 text-zinc-700 data-[state=on]:text-zinc-700 dark:text-gray-400 dark:data-[state=on]:text-zinc-700" />
+                    <AlignVerticalIcon size={16} />
                   </ToggleGroup.Item>
                 </ToggleGroup.Root>
               </div>
@@ -245,7 +247,7 @@ export const ProfileMenu = () => {
                   onCheckedChange={() => {
                     handleUpdateShowMonths();
                   }}
-                  className="relative inline-flex h-5 w-9 items-center rounded-full bg-black/5 p-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 dark:bg-white/5 dark:data-[state=checked]:border-blue-500 dark:data-[state=checked]:bg-blue-500"
+                  className="relative inline-flex h-5 w-9 items-center rounded-full bg-black/5 p-0.5 transition-colors focus:outline-none data-[state=checked]:bg-black/60 dark:bg-white/5 dark:data-[state=checked]:bg-white/40"
                 >
                   <Switch.Thumb className="inline-block h-4 w-4 transform rounded-full border border-neutral-300 bg-white shadow-sm transition-transform data-[state=checked]:translate-x-4 dark:border-neutral-500" />
                 </Switch.Root>
@@ -261,7 +263,7 @@ export const ProfileMenu = () => {
                   onCheckedChange={() => {
                     handleUpdateFolder();
                   }}
-                  className="relative inline-flex h-5 w-9 items-center rounded-full bg-black/5 p-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 dark:bg-white/5 dark:data-[state=checked]:border-blue-500 dark:data-[state=checked]:bg-blue-500"
+                  className="relative inline-flex h-5 w-9 items-center rounded-full bg-black/5 p-0.5 transition-colors focus:outline-none data-[state=checked]:bg-black/60 dark:bg-white/5 dark:data-[state=checked]:bg-white/40"
                 >
                   <Switch.Thumb className="inline-block h-4 w-4 transform rounded-full border border-neutral-300 bg-white shadow-sm transition-transform data-[state=checked]:translate-x-4 dark:border-neutral-500" />
                 </Switch.Root>
