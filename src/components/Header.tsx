@@ -1,10 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  Cross2Icon,
-  PlusIcon,
-} from "@radix-ui/react-icons";
+import { CheckIcon, ChevronDownIcon, Cross2Icon } from "@radix-ui/react-icons";
 import * as Select from "@radix-ui/react-select";
 import { motion } from "framer-motion";
 import React, { useEffect, useState } from "react";
@@ -26,6 +21,8 @@ import { CreateFolderForm } from "./CreateFolderForm";
 import { DeleteFolderForm } from "./DeleteFolderForm";
 import { Hotkey } from "./Hotkey";
 import { Separator } from "./Separator";
+import { PlusIcon } from "./icons/PlusIcon";
+import { XIcon } from "./icons/XIcon";
 
 export const Header = ({
   inputRef,
@@ -196,7 +193,7 @@ export const Header = ({
                           )}
                           <span className="font-medium">
                             {folder?.name}
-                            <span className="self-center text-xs font-normal text-gray-500 ml-2">
+                            <span className="ml-2 self-center text-xs font-normal text-gray-500">
                               {folder._count?.bookmarks ?? 0}
                             </span>
                           </span>
@@ -230,7 +227,7 @@ export const Header = ({
                         className="flex items-center justify-between gap-5"
                       >
                         <div className="flex items-center font-medium">
-                          <PlusIcon className="ml-[0.1rem] h-4 w-4" />
+                          <PlusIcon size={16} />
                           <span className="ml-3">New folder</span>
                         </div>
                         <Hotkey key1="n" />
@@ -261,7 +258,7 @@ export const Header = ({
                         className="flex items-center justify-between gap-5"
                       >
                         <div className="flex items-center font-medium">
-                          <Cross2Icon className="ml-[0.1rem] h-4 w-4 text-red-500" />
+                          <XIcon size={16} className="text-red-500" />
                           <span className="ml-3 text-red-500">Delete</span>
                         </div>
                         <Hotkey red key1="x" />

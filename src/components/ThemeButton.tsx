@@ -1,5 +1,7 @@
-import { SunIcon, MoonIcon } from "@radix-ui/react-icons";
+import { SunIcon } from "@radix-ui/react-icons";
 import { motion } from "framer-motion";
+import { MoonIcon } from "./icons/MoonIcon";
+import { SunDimIcon } from "./icons/SunDimIcon";
 
 export const ThemeButton = ({
   theme,
@@ -17,27 +19,27 @@ export const ThemeButton = ({
         scale: 0.95,
       }}
       onClick={() => void handleChangeTheme()}
-      className="rounded-full bg-black/10 p-3 text-black no-underline transition hover:bg-black/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
+      className="black:text-white rounded-full  p-2 text-black no-underline  hover:bg-black/20 dark:text-white dark:hover:bg-white/20"
     >
-        {theme === "light" ? (
-          <motion.div
-            key="light"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-          >
-            <MoonIcon className="h-4 w-4" />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="dark"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-          >
-            <SunIcon className="h-4 w-4" />
-          </motion.div>
-        )}
+      {theme === "light" ? (
+        <motion.div
+          key="light"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+        >
+          <MoonIcon />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="dark"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+        >
+          <SunDimIcon />
+        </motion.div>
+      )}
     </motion.button>
   );
 };

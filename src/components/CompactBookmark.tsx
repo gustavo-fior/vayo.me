@@ -1,6 +1,5 @@
 import { type Bookmark } from "@prisma/client";
 import * as ContextMenu from "@radix-ui/react-context-menu";
-import { Cross1Icon } from "@radix-ui/react-icons";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +7,7 @@ import { api } from "~/utils/api";
 import { itemVariants } from "../helpers/animationVariants";
 import { ContextMenuContent } from "./ContextMenuContent";
 import { Spinner } from "./Spinner";
+import { XIcon } from "./icons/XIcon";
 
 export const CompactBookmark = ({
   bookmark,
@@ -81,8 +81,8 @@ export const CompactBookmark = ({
             window.open(bookmark.url, "_blank");
           }}
         >
-          <motion.div className="flex items-center justify-between rounded-2xl p-3 align-middle transition duration-200 ease-out hover:bg-black/5 hover:dark:bg-white/5">
-            <div className="flex w-full flex-row items-center gap-3 align-middle">
+          <motion.div className="flex items-center justify-between rounded-2xl p-2 align-middle transition duration-200 ease-out hover:bg-black/5 hover:dark:bg-white/5 sm:p-3">
+            <div className="flex w-full flex-row items-center gap-2 align-middle sm:gap-3">
               {bookmark.loading ? (
                 <motion.div className="flex min-h-[1.9rem] min-w-[1.9rem] items-center justify-center rounded-lg bg-black/10 p-2 dark:bg-white/10">
                   <Spinner size="sm" />
@@ -158,16 +158,16 @@ export const CompactBookmark = ({
                     onBlur={() => {
                       setIsEditing(false);
 
-                        if (title.length === 0) {
-                          setTitle(bookmark.title);
+                      if (title.length === 0) {
+                        setTitle(bookmark.title);
 
-                          return;
-                        }
+                        return;
+                      }
 
-                        renameBookmark.mutate({
-                          id: bookmark.id,
-                          title,
-                        });
+                      renameBookmark.mutate({
+                        id: bookmark.id,
+                        title,
+                      });
                     }}
                     className="w-full bg-transparent font-medium text-black focus:outline-none dark:text-white"
                   />
@@ -177,13 +177,13 @@ export const CompactBookmark = ({
                   animate={{ opacity: 1 }}
                   initial={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className={`max-w-full truncate font-medium text-black dark:text-white sm:max-w-[22rem] md:max-w-[22rem] lg:max-w-[24rem]`}
+                  className={`max-w-[24rem] truncate font-medium text-black dark:text-white sm:max-w-[18rem] md:max-w-[20rem] lg:max-w-[22rem] xl:max-w-[24rem]`}
                 >
                   {title}
                 </motion.p>
               )}
               {!isEditing && (
-                <p className="hidden truncate text-sm text-zinc-500 sm:block sm:max-w-[10rem] md:max-w-[10rem] lg:max-w-[18rem]">
+                <p className="hidden truncate text-sm text-zinc-500 sm:block sm:max-w-[6rem] md:max-w-[8rem] lg:max-w-[18rem]">
                   {bookmark.url}
                 </p>
               )}
@@ -199,13 +199,13 @@ export const CompactBookmark = ({
                     : 0,
               }}
               exit={{ opacity: 0 }}
-              className="z-50 pr-2 font-bold text-zinc-500 duration-300 ease-in-out hover:text-black dark:hover:text-white"
+              className="z-50 pr-2 font-bold text-zinc-500 duration-300 ease-in-out hover:text-red-500"
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove ? onRemove(bookmark.id) : null;
               }}
             >
-              <Cross1Icon className="h-4 w-4" />
+              <XIcon size={22} />
             </motion.button>
           </motion.div>
         </motion.li>

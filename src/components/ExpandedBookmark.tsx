@@ -1,6 +1,5 @@
 import { type Bookmark } from "@prisma/client";
 import * as ContextMenu from "@radix-ui/react-context-menu";
-import { Cross1Icon } from "@radix-ui/react-icons";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +7,7 @@ import { api } from "~/utils/api";
 import { itemVariants } from "../helpers/animationVariants";
 import { ContextMenuContent } from "./ContextMenuContent";
 import { Spinner } from "./Spinner";
+import { XIcon } from "./icons/XIcon";
 
 export const ExpandedBookmark = ({
   bookmark,
@@ -96,7 +96,6 @@ export const ExpandedBookmark = ({
                   initial={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
                   className="hidden md:block"
-
                 >
                   <Image
                     priority
@@ -173,7 +172,7 @@ export const ExpandedBookmark = ({
                           title,
                         });
                       }}
-                      className="w-full bg-transparent font-medium text-black focus:outline-none text-lg dark:text-white"
+                      className="w-full bg-transparent text-lg font-medium text-black focus:outline-none dark:text-white"
                     />
                   </form>
                 ) : (
@@ -181,7 +180,7 @@ export const ExpandedBookmark = ({
                     animate={{ opacity: 1 }}
                     initial={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className={`lg:max-w-[30rem] md:max-w-[24rem] sm:max-w-[24rem] max-w-[20rem] truncate text-lg font-medium text-black dark:text-white`}
+                    className={`max-w-[20rem] truncate text-lg font-medium text-black dark:text-white sm:max-w-[24rem] md:max-w-[24rem] lg:max-w-[30rem]`}
                   >
                     {title}
                   </motion.p>
@@ -226,13 +225,13 @@ export const ExpandedBookmark = ({
                     : 0,
               }}
               exit={{ opacity: 0 }}
-              className="z-50 pr-2 font-bold text-zinc-500 duration-300 ease-in-out hover:text-black dark:hover:text-white"
+              className="z-50 pr-2 font-bold text-zinc-500 duration-300 ease-in-out hover:text-red-500"
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove ? onRemove(bookmark.id) : null;
               }}
             >
-              <Cross1Icon className="h-4 w-4" />
+              <XIcon size={22} />
             </motion.button>
           </motion.div>
         </motion.li>
