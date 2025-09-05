@@ -1,6 +1,5 @@
 import { type Bookmark } from "@prisma/client";
 import * as ContextMenu from "@radix-ui/react-context-menu";
-import { Cross1Icon } from "@radix-ui/react-icons";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +7,7 @@ import { api } from "~/utils/api";
 import { itemVariants } from "../helpers/animationVariants";
 import { ContextMenuContent } from "./ContextMenuContent";
 import { Spinner } from "./Spinner";
+import { XIcon } from "./icons/XIcon";
 
 export const CompactBookmark = ({
   bookmark,
@@ -199,13 +199,13 @@ export const CompactBookmark = ({
                     : 0,
               }}
               exit={{ opacity: 0 }}
-              className="z-50 pr-2 font-bold text-zinc-500 duration-300 ease-in-out hover:text-black dark:hover:text-white"
+              className="z-50 pr-2 font-bold text-zinc-500 duration-300 ease-in-out hover:text-red-500"
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove ? onRemove(bookmark.id) : null;
               }}
             >
-              <Cross1Icon className="h-4 w-4" />
+              <XIcon size={22} />
             </motion.button>
           </motion.div>
         </motion.li>
