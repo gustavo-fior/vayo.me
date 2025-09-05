@@ -13,7 +13,7 @@ import { useState } from "react";
 import { currentFolderAtom } from "~/helpers/atoms";
 import { api } from "~/utils/api";
 import { Separator } from "./Separator";
-import { UploadIcon } from "./icons/shareIcon";
+import { UploadIcon } from "./icons/UploadIcon";
 
 export const ShareButton = () => {
   const [currentFolder, setCurrentFolder] = useAtom(currentFolderAtom);
@@ -72,8 +72,7 @@ export const ShareButton = () => {
           exit={{ opacity: 0 }}
           className="black:text-white rounded-full  p-2 text-black no-underline  hover:bg-black/20 dark:text-white dark:hover:bg-white/20"
         >
-          <div className="flex items-center gap-x-2 align-middle text-gray-800 dark:text-gray-400">
-            {/* <Share2Icon className="h-5 w-5" /> */}
+          <div className="flex items-center gap-x-2 align-middle">
             <UploadIcon />
           </div>
         </motion.button>
