@@ -29,7 +29,7 @@ const svgTransition: Transition = {
 };
 
 const MoonIcon = forwardRef<MoonIconHandle, MoonIconProps>(
-  ({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {
+  ({ onMouseEnter, onMouseLeave, className, size = 20, ...props }, ref) => {
     const controls = useAnimation();
     const isControlledRef = useRef(false);
 
@@ -77,7 +77,7 @@ const MoonIcon = forwardRef<MoonIconHandle, MoonIconProps>(
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="1.9"
           strokeLinecap="round"
           strokeLinejoin="round"
           variants={svgVariants}

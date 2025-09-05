@@ -1,19 +1,41 @@
 "use client";
 
+import type { Variants } from "framer-motion";
 import { motion, useAnimation } from "framer-motion";
 import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
-export interface AlignCenterIconHandle {
+export interface CheckIconHandle {
   startAnimation: () => void;
   stopAnimation: () => void;
 }
 
-interface AlignCenterIconProps extends HTMLAttributes<HTMLDivElement> {
+interface CheckIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
 }
 
-const AlignCenterIcon = forwardRef<AlignCenterIconHandle, AlignCenterIconProps>(
+const pathVariants: Variants = {
+  normal: {
+    opacity: 1,
+    pathLength: 1,
+    scale: 1,
+    transition: {
+      duration: 0.3,
+      opacity: { duration: 0.1 },
+    },
+  },
+  animate: {
+    opacity: [0, 1],
+    pathLength: [0, 1],
+    scale: [0.5, 1],
+    transition: {
+      duration: 0.4,
+      opacity: { duration: 0.1 },
+    },
+  },
+};
+
+const CheckIcon = forwardRef<CheckIconHandle, CheckIconProps>(
   ({ onMouseEnter, onMouseLeave, className, size = 20, ...props }, ref) => {
     const controls = useAnimation();
     const isControlledRef = useRef(false);
@@ -68,29 +90,17 @@ const AlignCenterIcon = forwardRef<AlignCenterIconHandle, AlignCenterIconProps>(
           strokeLinejoin="round"
         >
           <motion.path
-            d="M17 12H7"
-            variants={{
-              normal: { translateX: 0 },
-              animate: {
-                translateX: [0, 3, -3, 2, -2, 0],
-                transition: {
-                  ease: "linear",
-                  translateX: {
-                    duration: 1,
-                  },
-                },
-              },
-            }}
+            variants={pathVariants}
+            initial="normal"
             animate={controls}
+            d="M4 12 9 17L20 6"
           />
-          <path d="M19 18H5" />
-          <path d="M21 6H3" />
         </svg>
       </div>
     );
   }
 );
 
-AlignCenterIcon.displayName = "AlignCenterIcon";
+CheckIcon.displayName = "CheckIcon";
 
-export { AlignCenterIcon };
+export { CheckIcon };
