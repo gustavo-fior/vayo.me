@@ -5,21 +5,22 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "env": [
+        "DATABASE_URL",
+        "CORS_ORIGIN",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "FIRECRAWL_API_KEY",
+        "NEXT_PUBLIC_SERVER_URL",
+        "NEXT_PUBLIC_APP_URL"
+      ]
     },
-    "env": [
-      "DATABASE_URL",
-      "CORS_ORIGIN",
-      "BETTER_AUTH_SECRET",
-      "BETTER_AUTH_URL",
-      "GITHUB_CLIENT_ID",
-      "GITHUB_CLIENT_SECRET",
-      "GOOGLE_CLIENT_ID",
-      "GOOGLE_CLIENT_SECRET",
-      "FIRECRAWL_API_KEY",
-      "NEXT_PUBLIC_SERVER_URL",
-      "NEXT_PUBLIC_APP_URL"
-    ],
+
     "lint": {
       "dependsOn": ["^lint"]
     },
