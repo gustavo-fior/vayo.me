@@ -1,22 +1,28 @@
-# TODO
+# Vayø
 
-- [x] improve landing page
-- [x] add move to other folder feature
-- [x] add ctrl v to add
-- [x] fix OG stuff
-- [x] fix loading while is fetching search
-- [x] fix last pages bug in big lists
-- [x] fix first folder creation
-- [x] fix currentFolderId bug
-- [x] fix emoji picker
-- [x] add rename bookmark feature (fix allow rename in public page)
-- [x] buy new domain
-- [x] create new logo
-- [ ] test supabase rest
-- [ ] make it navigable with keyboard
+A home for your most amazing links.
 
-## Bugs
+## V2
 
-- [x] new folder modal margin top
-- [x] fix folder name when it has no icon
-- [x] when deleting a folder, the bookmarks of the redirect one are shown in every other folder
+- [x] When last folder is deleted, remove share menu
+- [x] Custom OG image per folder
+- [x] UI
+- [x] Keyboard hotkeys
+- [x] Context menu
+  - [x] Edit title
+  - [x] Move to other folder
+  - [x] Copy link
+- [x] Landing
+- [ ] Responsive
+
+### Final
+
+- [ ] Update logo in CWS, Github, Google, Portfolio
+
+### V2.1
+
+- [ ] Search by bookmark's content (embedding)
+- [ ] Support colors (think about it, maybe other stuff too)
+- [ ] Keyboard accessible
+- [ ] Fade overlay
+- [ ] SFX
