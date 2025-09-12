@@ -5,7 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"],
+      "outputs": ["dist/**", ".next/**"],
       "env": [
         "DATABASE_URL",
         "CORS_ORIGIN",
@@ -20,7 +20,6 @@
         "NEXT_PUBLIC_APP_URL"
       ]
     },
-
     "lint": {
       "dependsOn": ["^lint"]
     },

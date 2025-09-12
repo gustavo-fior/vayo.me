@@ -17,7 +17,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { Bookmark as BookmarkType } from "../../../server/src/trpc/routers/bookmarks";
+import type { Bookmark as BookmarkType } from "server/src/trpc/routers/bookmarks";
 import {
   ContextMenu,
   ContextMenuContent,
