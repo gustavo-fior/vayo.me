@@ -13,7 +13,7 @@ A home for your most amazing links.
   - [x] Move to other folder
   - [x] Copy link
 - [x] Landing
-- [ ] Responsive
+- [x] Responsive
 
 ### Final
 
