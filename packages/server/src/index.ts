@@ -11,8 +11,7 @@ import { and, eq } from "drizzle-orm";
 import { folder } from "./db/schema/folder";
 import { handle } from "hono/vercel";
 
-const app = new Hono();
-
+const app = new Hono().basePath("/api");
 app.use(logger());
 app.use(
   "/*",
@@ -24,7 +23,7 @@ app.use(
   })
 );
 
-app.on(["POST", "GET"], "/api/auth/**", (c) => auth.handler(c.req.raw));
+app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw));
 
 app.use(
   "/trpc/*",
@@ -36,7 +35,7 @@ app.use(
   })
 );
 
-app.get("/api/getFolderById", async (c) => {
+app.get("/getFolderById", async (c) => {
   const folderId = c.req.query("folderId");
 
   if (!folderId) {
@@ -54,7 +53,7 @@ app.get("/api/getFolderById", async (c) => {
   return c.json(foundFolder);
 });
 
-app.get("/api", (c) => {
+app.get("/", (c) => {
   return c.text("OK");
 });
 
