@@ -27,7 +27,7 @@
     "paths": {
       "@/*": [
         "./src/*",
-        "../server/src/*"
+        "../../packages/server/src/*"
       ]
     }
   },
@@ -43,7 +43,7 @@
   ],
   "references": [
     {
-      "path": "../server"
+      "path": "../../packages/server"
     }
   ]
 }

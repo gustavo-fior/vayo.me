@@ -1,5 +1,5 @@
 {
-  "name": "vayo2",
+  "name": "vayo.me",
   "private": true,
   "workspaces": [
     "apps/*",
