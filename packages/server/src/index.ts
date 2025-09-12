@@ -24,7 +24,9 @@ app.use(
   })
 );
 
-app.on(["POST", "GET"], "/auth/**", (c) => auth.handler(c.req.raw));
+app.get("/auth/**", (c) => auth.handler(c.req.raw));
+
+app.post("/auth/**", (c) => auth.handler(c.req.raw));
 
 app.use(
   "/trpc/*",
