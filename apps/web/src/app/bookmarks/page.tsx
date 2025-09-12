@@ -323,7 +323,9 @@ export default function Bookmarks() {
             </div>
           )}
 
-          {!showMonths && <hr className="mt-6 mb-2 opacity-50" />}
+          {!showMonths && folders.data && folders.data.length > 0 && (
+            <hr className="mt-6 mb-2 opacity-50" />
+          )}
 
           {bookmarks.isSuccess &&
             folders.data &&
