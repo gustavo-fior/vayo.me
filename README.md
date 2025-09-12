@@ -14,6 +14,7 @@ A home for your most amazing links.
   - [x] Copy link
 - [x] Landing
 - [x] Responsive
+- [ ] Redirect user if signed in
 
 ### Final
 
