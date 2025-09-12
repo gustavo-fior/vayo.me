@@ -15,6 +15,8 @@ A home for your most amazing links.
 - [x] Landing
 - [x] Responsive
 - [ ] Redirect user if signed in
+- [ ] Test performance on live db
+- [ ] Remove Firecrawl
 
 ### Final
 
