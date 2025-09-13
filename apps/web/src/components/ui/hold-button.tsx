@@ -5,10 +5,14 @@ export function HoldToDeleteButton({
   children,
   handleDelete,
   disabled,
+  isPending = false,
+  pendingText,
 }: {
   children: React.ReactNode;
   handleDelete: () => void;
   disabled: boolean;
+  isPending?: boolean;
+  pendingText?: React.ReactNode;
 }) {
   const [actionTriggered, setActionTriggered] = useState(false);
   const holdTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -42,18 +46,18 @@ export function HoldToDeleteButton({
     <Button
       disabled={disabled}
       variant="ghost"
-      className="relative group overflow-hidden group px-2 w-full justify-start rounded-sm transition-none hover:bg-destructive/5 dark:hover:bg-destructive/5 hover:text-destructive dark:hover:text-destructive [&_svg]:text-neutral-400 dark:[&_svg]:text-neutral-600 hover:[&_svg]:text-destructive/50 active:scale-100"
+      className="relative group overflow-hidden group px-2 w-full justify-start rounded-sm transition-none hover:bg-destructive/5 dark:hover:bg-destructive/5 hover:text-destructive dark:hover:text-destructive data-[triggered=true]:text-destructive dark:data-[triggered=true]:text-destructive [&_svg]:text-neutral-400 dark:[&_svg]:text-neutral-600 hover:[&_svg]:text-destructive/50 data-[triggered=true]:[&_svg]:text-destructive/50 active:scale-100"
       onMouseDown={startHolding}
       onMouseUp={stopHolding}
       onMouseLeave={stopHolding}
       onTouchStart={startHolding}
       onTouchEnd={stopHolding}
-      data-triggered={actionTriggered}
+      data-triggered={actionTriggered || isPending}
     >
       <div aria-hidden="true" className="hold-overlay justify-start opacity-30">
-        {children}
+        {isPending && pendingText ? pendingText : children}
       </div>
-      {children}
+      {isPending && pendingText ? pendingText : children}
     </Button>
   );
 }

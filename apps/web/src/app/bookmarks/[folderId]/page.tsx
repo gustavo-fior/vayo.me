@@ -87,7 +87,7 @@ export default function Bookmarks() {
                 </h1>
               </div>
             )}
-            {!notShared && (
+            {!notShared && !folder.isPending && (
               <div className="flex items-center">
                 <Button
                   variant="ghost"
@@ -109,7 +109,7 @@ export default function Bookmarks() {
             )}
           </div>
 
-          <hr className="mt-2 mb-2 opacity-50" />
+          {!folder.isPending && <hr className="mt-2 mb-2 opacity-50" />}
 
           {bookmarks.isSuccess &&
             bookmarks.data?.pages.every((page: any[]) => page.length === 0) && (

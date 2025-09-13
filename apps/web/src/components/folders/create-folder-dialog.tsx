@@ -19,7 +19,7 @@ import {
   EmojiPickerSearch,
 } from "../ui/emoji-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { PlusIcon } from "lucide-react";
+import { Loader2, PlusIcon } from "lucide-react";
 import type { Folder } from "@/app/bookmarks/page";
 
 export const CreateFolderDialog = ({
@@ -115,7 +115,11 @@ export const CreateFolderDialog = ({
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={createFolder.isPending}
+          >
             Cancel
           </Button>
           <Button
@@ -124,8 +128,14 @@ export const CreateFolderDialog = ({
                 createFolder.mutate({ name, icon });
               }
             }}
+            disabled={createFolder.isPending}
+            className="w-24"
           >
-            Create
+            {createFolder.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Create"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

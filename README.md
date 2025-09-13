@@ -14,9 +14,9 @@ A home for your most amazing links.
   - [x] Copy link
 - [x] Landing
 - [x] Responsive
-- [ ] Redirect user if signed in
+- [x] Redirect user if signed in
+- [x] Remove Firecrawl
 - [ ] Test performance on live db
-- [ ] Remove Firecrawl
 
 ### Final
 

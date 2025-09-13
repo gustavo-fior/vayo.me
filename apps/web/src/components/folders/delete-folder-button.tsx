@@ -44,6 +44,13 @@ export const DeleteFolderButton = ({
     <HoldToDeleteButton
       handleDelete={() => deleteFolder.mutate(folderId)}
       disabled={deleteFolder.isPending}
+      isPending={deleteFolder.isPending}
+      pendingText={
+        <div className="flex items-center gap-2 z-10 font-normal">
+          <Trash2 className="size-3.5" />
+          Deleting...
+        </div>
+      }
     >
       <div className="flex items-center gap-2 z-10 font-normal">
         <Trash2 className="size-3.5" />

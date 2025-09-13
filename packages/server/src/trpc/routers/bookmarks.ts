@@ -1,14 +1,12 @@
-import { protectedProcedure, router } from "../trpc";
 import { db } from "@/db";
-import { and, desc, eq } from "drizzle-orm";
-import { z } from "zod";
+import { bookmark, folder } from "@/db/schema";
+import { updateBookmarkSummary } from "@/lib/get-summary";
+import { getUrlMetadata } from "@/lib/url-metadata";
 import { TRPCError } from "@trpc/server";
-import Firecrawl from "@mendable/firecrawl-js";
-import { bookmark } from "@/db/schema";
-import { folder } from "@/db/schema";
+import { and, desc, eq } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
-
-const firecrawl = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
+import { z } from "zod";
+import { protectedProcedure, router } from "../trpc";
 
 const PAGE_SIZE = 30;
 
@@ -73,10 +71,28 @@ export const bookmarksRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const scrapeResponse = await firecrawl.scrape(input.url, {
-        formats: ["markdown", "summary"],
-      });
+      const startTime = Date.now();
+      console.log(
+        `[${new Date().toISOString()}] Starting bookmark creation for URL: ${
+          input.url
+        }`
+      );
 
+      console.log(
+        `[${new Date().toISOString()}] Starting URL metadata scrape...`
+      );
+      const metadataStartTime = Date.now();
+      const metadata = await getUrlMetadata(input.url);
+      console.log(metadata);
+
+      console.log(
+        `[${new Date().toISOString()}] URL metadata scrape completed in ${
+          Date.now() - metadataStartTime
+        }ms`
+      );
+
+      console.log(`[${new Date().toISOString()}] Starting folder update...`);
+      const folderUpdateStartTime = Date.now();
       const updatedFolder = await db
         .update(folder)
         .set({ updatedAt: new Date() })
@@ -87,25 +103,59 @@ export const bookmarksRouter = router({
           )
         )
         .returning();
+      const folderUpdateEndTime = Date.now();
+      console.log(
+        `[${new Date().toISOString()}] Folder update completed in ${
+          folderUpdateEndTime - folderUpdateStartTime
+        }ms`
+      );
 
       if (!updatedFolder) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Folder not found" });
       }
 
+      console.log(`[${new Date().toISOString()}] Processing bookmark data...`);
+
+      const bookmarkId = uuidv7();
+
       const bookmarkData = {
         ...input,
-        id: uuidv7(),
-        title: scrapeResponse.metadata?.title ?? "Untitled",
-        description: scrapeResponse.metadata?.description ?? null,
-        faviconUrl: String(scrapeResponse.metadata?.favicon) ?? null,
-        ogImageUrl: scrapeResponse.metadata?.ogImage ?? null,
-        summary: scrapeResponse.summary ?? null,
+        id: bookmarkId,
+        title: metadata?.title ?? "Untitled",
+        description: metadata?.description ?? null,
+        faviconUrl: metadata?.favicons?.[0]?.href
+          ? new URL(metadata.favicons[0].href, input.url).toString()
+          : null,
+        ogImageUrl: metadata?.["og:image"] ?? null,
       };
+      console.log(`[${new Date().toISOString()}] Bookmark data processed`);
 
       try {
-        return db.insert(bookmark).values(bookmarkData);
+        console.log(
+          `[${new Date().toISOString()}] Starting bookmark insert...`
+        );
+        const insertStartTime = Date.now();
+        const result = await db.insert(bookmark).values(bookmarkData);
+        const insertEndTime = Date.now();
+        console.log(
+          `[${new Date().toISOString()}] Bookmark insert completed in ${
+            insertEndTime - insertStartTime
+          }ms`
+        );
+
+        const totalTime = Date.now() - startTime;
+        console.log(
+          `[${new Date().toISOString()}] Total bookmark creation time: ${totalTime}ms`
+        );
+
+        void updateBookmarkSummary(bookmarkId, input.url);
+
+        return result;
       } catch (error) {
-        console.error(error);
+        console.error(
+          `[${new Date().toISOString()}] Error during bookmark insert:`,
+          error
+        );
         return null;
       }
     }),

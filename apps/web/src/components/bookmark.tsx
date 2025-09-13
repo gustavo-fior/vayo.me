@@ -29,6 +29,7 @@ import {
   ContextMenuTrigger,
 } from "./ui/context-menu";
 import { Input } from "./ui/input";
+import { isValidURL } from "@/utils/url-validator";
 
 export const Bookmark = ({
   bookmark,
@@ -62,6 +63,53 @@ export const Bookmark = ({
 
   const updateTitle = useMutation(
     trpc.bookmarks.updateTitle.mutationOptions({
+      onMutate: async ({ id, title: newTitle }) => {
+        // Cancel any outgoing refetches to avoid conflicts
+        await queryClient.cancelQueries({
+          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+        });
+
+        // Snapshot the previous bookmarks data
+        const previousBookmarks = queryClient.getQueryData([
+          "bookmarks",
+          "getBookmarksByFolderId",
+          bookmark.folderId,
+        ]);
+
+        // Optimistically update the bookmark title in the cache
+        queryClient.setQueryData(
+          ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+          (old: any) => {
+            if (!old) return old;
+
+            // Update the title in all pages of the infinite query
+            const newPages = old.pages.map((page: any[]) =>
+              page.map((b: any) =>
+                b.id === id ? { ...b, title: newTitle } : b
+              )
+            );
+
+            return {
+              ...old,
+              pages: newPages,
+            };
+          }
+        );
+
+        // Return context for rollback
+        return { previousBookmarks };
+      },
+      onError: (_, __, context) => {
+        // Rollback to previous state on error
+        if (context?.previousBookmarks) {
+          queryClient.setQueryData(
+            ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+            context.previousBookmarks
+          );
+        }
+        // Reset local title state to original value
+        setTitle(bookmark.title);
+      },
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
@@ -83,6 +131,49 @@ export const Bookmark = ({
 
   const moveBookmarkToFolder = useMutation(
     trpc.bookmarks.moveBookmarkToFolder.mutationOptions({
+      onMutate: async ({ bookmarkId, folderId: newFolderId }) => {
+        // Cancel any outgoing refetches to avoid conflicts
+        await queryClient.cancelQueries({
+          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+        });
+
+        // Snapshot the previous bookmarks data
+        const previousBookmarks = queryClient.getQueryData([
+          "bookmarks",
+          "getBookmarksByFolderId",
+          bookmark.folderId,
+        ]);
+
+        // Optimistically remove the bookmark from the current folder
+        queryClient.setQueryData(
+          ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+          (old: any) => {
+            if (!old) return old;
+
+            // Remove the bookmark from all pages of the infinite query
+            const newPages = old.pages.map((page: any[]) =>
+              page.filter((b: any) => b.id !== bookmarkId)
+            );
+
+            return {
+              ...old,
+              pages: newPages,
+            };
+          }
+        );
+
+        // Return context for rollback
+        return { previousBookmarks, originalFolderId: bookmark.folderId };
+      },
+      onError: (_, __, context) => {
+        // Rollback to previous state on error
+        if (context?.previousBookmarks) {
+          queryClient.setQueryData(
+            ["bookmarks", "getBookmarksByFolderId", context.originalFolderId],
+            context.previousBookmarks
+          );
+        }
+      },
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
@@ -115,17 +206,19 @@ export const Bookmark = ({
           }}
         >
           <div className="flex items-center gap-3 w-[calc(100%-4rem)]">
-            {bookmark.ogImageUrl && showOgImage && (
-              <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10">
-                <Image
-                  src={bookmark.ogImageUrl}
-                  alt="OG Image"
-                  className="rounded-[3px] object-cover h-10 w-20"
-                  width={320}
-                  height={180}
-                />
-              </div>
-            )}
+            {bookmark.ogImageUrl &&
+              showOgImage &&
+              isValidURL(bookmark.ogImageUrl) && (
+                <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10">
+                  <Image
+                    src={bookmark.ogImageUrl}
+                    alt="OG Image"
+                    className="rounded-[3px] object-cover h-10 w-20"
+                    width={320}
+                    height={180}
+                  />
+                </div>
+              )}
             {!bookmark.ogImageUrl && showOgImage && (
               <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10 rounded-[3px] bg-muted-foreground/10 flex items-center justify-center">
                 <Globe className="size-3 text-neutral-300 dark:text-neutral-600" />
@@ -133,7 +226,9 @@ export const Bookmark = ({
             )}
             {!showOgImage && (
               <>
-                {bookmark.faviconUrl ? (
+                {bookmark.faviconUrl &&
+                bookmark.faviconUrl !== "undefined" &&
+                isValidURL(bookmark.faviconUrl) ? (
                   <Image
                     src={bookmark.faviconUrl}
                     alt="Favicon"
@@ -158,7 +253,7 @@ export const Bookmark = ({
                     ref={inputRef}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full border-none outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 py-0 text-sm font-medium bg-transparent h-5"
+                    className="w-full border-none outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 py-0 text-sm font-medium bg-transparent h-5 shadow-none"
                     onBlur={() => {
                       setIsEditingTitle(false);
                       updateTitle.mutate({
@@ -199,7 +294,9 @@ export const Bookmark = ({
               <div className="flex items-center gap-1.5">
                 {showOgImage && (
                   <>
-                    {bookmark.faviconUrl ? (
+                    {bookmark.faviconUrl &&
+                    bookmark.faviconUrl !== "undefined" &&
+                    isValidURL(bookmark.faviconUrl) ? (
                       <Image
                         src={bookmark.faviconUrl}
                         alt="Favicon"

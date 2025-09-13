@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTheme } from "next-themes";
+import { getLastFolderId, saveLastFolderId } from "@/utils/local-storage";
 
 export type Folder = {
   id: string;
@@ -174,9 +175,31 @@ export default function Bookmarks() {
       folders.data.length > 0 &&
       !selectedFolder?.id
     ) {
+      // Try to get the last selected folder from localStorage
+      const lastFolderId = getLastFolderId();
+
+      if (lastFolderId) {
+        // Check if the last folder still exists in the current folders
+        const lastFolder = folders.data.find(
+          (folder) => folder.id === lastFolderId
+        );
+        if (lastFolder) {
+          setSelectedFolder(lastFolder);
+          return;
+        }
+      }
+
+      // Fallback to the first folder if no valid last folder found
       setSelectedFolder(folders.data[0]);
     }
-  }, [folders.isSuccess, folders.data]);
+  }, [folders.isSuccess, folders.data, selectedFolder?.id]);
+
+  // Save selected folder to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedFolder?.id) {
+      saveLastFolderId(selectedFolder.id);
+    }
+  }, [selectedFolder?.id]);
 
   return (
     <>

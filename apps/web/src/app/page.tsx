@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 
 const redaction = localFont({
   src: [
@@ -69,8 +70,12 @@ const redaction = localFont({
 });
 
 export default function Home() {
-  const [currentFontClass, setCurrentFontClass] = useState("font-normal");
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const { data: session } = authClient.useSession();
+
   const [isGlitching, setIsGlitching] = useState(false);
+  const [currentFontClass, setCurrentFontClass] = useState("font-normal");
   const [glitchTransform, setGlitchTransform] = useState("translate(0px, 0px)");
 
   const fontWeights = [
@@ -119,6 +124,12 @@ export default function Home() {
 
     return () => clearInterval(glitchInterval);
   }, []);
+
+  useEffect(() => {
+    if (session?.user) {
+      router.push("/bookmarks");
+    }
+  }, [session?.user]);
 
   return (
     <div className="container mx-auto max-w-md flex h-screen flex-col justify-center md:px-0 px-6">
@@ -177,7 +188,9 @@ export default function Home() {
         <Button
           variant="secondary"
           className="w-full flex items-center justify-center gap-2"
+          disabled={isLoading}
           onClick={() => {
+            setIsLoading(true);
             authClient.signIn.social({
               provider: "google",
               callbackURL: `${process.env.NEXT_PUBLIC_APP_URL + "/bookmarks"}`,
@@ -215,7 +228,9 @@ export default function Home() {
         <Button
           variant="secondary"
           className="w-full flex items-center justify-center gap-2"
+          disabled={isLoading}
           onClick={() => {
+            setIsLoading(true);
             authClient.signIn.social({
               provider: "github",
               callbackURL: `${process.env.NEXT_PUBLIC_APP_URL + "/bookmarks"}`,
