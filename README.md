@@ -16,10 +16,12 @@ A home for your most amazing links.
 - [x] Responsive
 - [x] Redirect user if signed in
 - [x] Remove Firecrawl
-- [ ] Test performance on live db
+- [x] Test performance on live db
 
 ### Final
 
+- [ ] Restore my bookmarks
+- [ ] Update Bookmarks link in portfolio
 - [ ] Update logo in CWS, Github, Google, Portfolio
 
 ### V2.1
