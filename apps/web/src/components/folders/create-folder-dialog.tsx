@@ -40,7 +40,7 @@ export const CreateFolderDialog = ({
         queryClient.invalidateQueries(trpc.folders.getFolders.queryOptions());
         setName("");
         setOpen(false);
-        setSelectedFolder(data[0]);
+        setSelectedFolder({ ...data[0], totalBookmarks: 0 });
         setSelectOpen?.(false);
       },
       onError: () => {

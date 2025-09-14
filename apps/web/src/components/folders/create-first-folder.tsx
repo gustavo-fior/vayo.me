@@ -30,7 +30,7 @@ export const CreateFirstFolder = ({
       onSuccess: (data) => {
         queryClient.invalidateQueries(trpc.folders.getFolders.queryOptions());
         setName("");
-        setSelectedFolder(data[0]);
+        setSelectedFolder({ ...data[0], totalBookmarks: 0 });
       },
       onError: () => {
         toast.error("Failed to create folder");
