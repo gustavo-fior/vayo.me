@@ -72,8 +72,9 @@ const redaction = localFont({
 
 export default function Home() {
   const router = useRouter();
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { data: session } = authClient.useSession();
 
   const [isGlitching, setIsGlitching] = useState(false);
@@ -125,6 +126,10 @@ export default function Home() {
     }, 1000 + Math.random() * 4000); // Every 4-8 seconds
 
     return () => clearInterval(glitchInterval);
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -188,7 +193,9 @@ export default function Home() {
         className="grid md:grid-cols-2 grid-cols-1 gap-4 items-center mt-8"
       >
         <Button
-          variant={theme === "dark" ? "secondary" : "outline"}
+          variant={
+            mounted && resolvedTheme === "dark" ? "secondary" : "outline"
+          }
           className="w-full flex items-center justify-center gap-2"
           disabled={isLoading}
           onClick={() => {
@@ -228,7 +235,9 @@ export default function Home() {
         </Button>
 
         <Button
-          variant={theme === "dark" ? "secondary" : "outline"}
+          variant={
+            mounted && resolvedTheme === "dark" ? "secondary" : "outline"
+          }
           className="w-full flex items-center justify-center gap-2"
           disabled={isLoading}
           onClick={() => {

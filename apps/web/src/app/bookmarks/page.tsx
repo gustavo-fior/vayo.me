@@ -23,6 +23,7 @@ import { capitalizeFirstLetter } from "@/utils/capitalize-first-letter";
 import { getCommonFavicons, getWebsiteName } from "@/utils/get-common-favicons";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { Shortcut } from "@/components/ui/shortcut";
 
 export type Folder = {
   id: string;
@@ -371,6 +372,33 @@ export default function Bookmarks() {
                     className="absolute text-destructive text-sm right-3 top-1/2 -translate-y-1/2"
                   >
                     Invalid URL
+                  </motion.div>
+                )}
+                {!isInvalidUrl && !isBookmarkAdded && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                      x: 8,
+                      filter: "blur(4px)",
+                      scale: 0.97,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      x: 0,
+                      filter: "blur(0px)",
+                      scale: 1,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      x: 8,
+                      filter: "blur(4px)",
+                      scale: 0.97,
+                    }}
+                    transition={{ duration: 0.1, ease: "easeInOut" }}
+                    className="absolute flex items-center gap-2 right-3 top-1/2 -translate-y-1/2"
+                  >
+                    <Shortcut>Shift</Shortcut>
+                    <Shortcut>F</Shortcut>
                   </motion.div>
                 )}
                 {isBookmarkAdded && (
