@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 const redaction = localFont({
   src: [
@@ -71,6 +72,7 @@ const redaction = localFont({
 
 export default function Home() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const { data: session } = authClient.useSession();
 
@@ -120,7 +122,7 @@ export default function Home() {
         // Reset position to center
         setGlitchTransform("translate(0px, 0px)");
       }, glitchDuration);
-    }, 4000 + Math.random() * 4000); // Every 4-8 seconds
+    }, 1000 + Math.random() * 4000); // Every 4-8 seconds
 
     return () => clearInterval(glitchInterval);
   }, []);
@@ -186,7 +188,7 @@ export default function Home() {
         className="grid md:grid-cols-2 grid-cols-1 gap-4 items-center mt-8"
       >
         <Button
-          variant="secondary"
+          variant={theme === "dark" ? "secondary" : "outline"}
           className="w-full flex items-center justify-center gap-2"
           disabled={isLoading}
           onClick={() => {
@@ -226,7 +228,7 @@ export default function Home() {
         </Button>
 
         <Button
-          variant="secondary"
+          variant={theme === "dark" ? "secondary" : "outline"}
           className="w-full flex items-center justify-center gap-2"
           disabled={isLoading}
           onClick={() => {

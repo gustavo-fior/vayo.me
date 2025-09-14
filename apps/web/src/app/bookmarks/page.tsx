@@ -14,11 +14,15 @@ import { addHttpIfMissing, isValidURL } from "@/utils/url-validator";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { BookmarkIcon, Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTheme } from "next-themes";
 import { getLastFolderId, saveLastFolderId } from "@/utils/local-storage";
+import { capitalizeFirstLetter } from "@/utils/capitalize-first-letter";
+import { getCommonFavicons, getWebsiteName } from "@/utils/get-common-favicons";
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 export type Folder = {
   id: string;
@@ -28,17 +32,23 @@ export type Folder = {
   createdAt: string;
   updatedAt: string;
   userId: string;
+  totalBookmarks: number;
 };
 
 export default function Bookmarks() {
-  const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const [url, setUrl] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const { theme, setTheme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMonths, setShowMonths] = useState(false);
   const [showOgImage, setShowOgImage] = useState(false);
   const [isInvalidUrl, setIsInvalidUrl] = useState(false);
   const [isBookmarkAdded, setIsBookmarkAdded] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { data: session, isPending: isSessionPending } =
+    authClient.useSession();
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const folders = useQuery(trpc.folders.getFolders.queryOptions());
@@ -101,9 +111,9 @@ export default function Bookmarks() {
         const optimisticBookmark = {
           id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID
           url,
-          title: "Loading...", // Placeholder title
+          title: capitalizeFirstLetter(getWebsiteName(url)), // Placeholder title
           description: null,
-          faviconUrl: null,
+          faviconUrl: getCommonFavicons(url) ?? null,
           ogImageUrl: null,
           folderId,
           createdAt: new Date().toISOString(),
@@ -200,6 +210,53 @@ export default function Bookmarks() {
       saveLastFolderId(selectedFolder.id);
     }
   }, [selectedFolder?.id]);
+
+  // Debounced search effect
+  useEffect(() => {
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(url);
+    }, 300); // 300ms debounce
+
+    // Cleanup timeout on unmount or url change
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [url]);
+
+  // Memoized filtered bookmarks for performance
+  const filteredAndGroupedBookmarks = useMemo(() => {
+    if (!bookmarks.data) return [];
+
+    // Flatten all pages into a single array for grouping
+    const allBookmarks = bookmarks.data.pages.flat();
+
+    const filteredBookmarks = searchQuery
+      ? allBookmarks.filter(
+          (bookmark) =>
+            bookmark.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            bookmark.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            bookmark.description
+              ?.toLowerCase()
+              .includes(searchQuery.toLowerCase())
+        )
+      : allBookmarks;
+
+    return groupBookmarksByMonth(filteredBookmarks);
+  }, [bookmarks.data, searchQuery]);
+
+  useEffect(() => {
+    if (!session?.user && !isSessionPending) {
+      router.push("/");
+    }
+  }, [session?.user, isSessionPending]);
 
   return (
     <>
@@ -364,72 +421,53 @@ export default function Bookmarks() {
             )}
 
           {bookmarks.data &&
-            (() => {
-              // Flatten all pages into a single array for grouping
-              const allBookmarks = bookmarks.data.pages.flat();
+            filteredAndGroupedBookmarks.map(
+              ([month, monthBookmarks], monthIndex) => {
+                return (
+                  <div key={month} className="space-y-2">
+                    {showMonths && (
+                      <h2 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8">
+                        {month}
+                      </h2>
+                    )}
+                    <div>
+                      {monthBookmarks.map(
+                        (bookmark: any, bookmarkIndex: number) => {
+                          // Check if this is the last bookmark across all months and pages
+                          const isLastMonth =
+                            monthIndex ===
+                            filteredAndGroupedBookmarks.length - 1;
+                          const isLastBookmarkInMonth =
+                            bookmarkIndex === monthBookmarks.length - 1;
+                          const isLastBookmark =
+                            isLastMonth && isLastBookmarkInMonth;
 
-              const filteredBookmarks = url
-                ? allBookmarks.filter(
-                    (bookmark) =>
-                      bookmark.url.toLowerCase().includes(url.toLowerCase()) ||
-                      bookmark.title
-                        .toLowerCase()
-                        .includes(url.toLowerCase()) ||
-                      bookmark.description
-                        ?.toLowerCase()
-                        .includes(url.toLowerCase())
-                  )
-                : allBookmarks;
-
-              return groupBookmarksByMonth(filteredBookmarks).map(
-                ([month, monthBookmarks], monthIndex) => {
-                  return (
-                    <div key={month} className="space-y-2">
-                      {showMonths && (
-                        <h2 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8">
-                          {month}
-                        </h2>
+                          return (
+                            <div
+                              key={bookmark.id}
+                              ref={
+                                isLastBookmark ? lastBookmarkElementRef : null
+                              }
+                            >
+                              <Bookmark
+                                bookmark={{
+                                  ...bookmark,
+                                  createdAt: new Date(bookmark.createdAt),
+                                  updatedAt: new Date(bookmark.updatedAt),
+                                }}
+                                showOgImage={showOgImage}
+                                isPublicPage={false}
+                                folders={folders.data ?? []}
+                              />
+                            </div>
+                          );
+                        }
                       )}
-                      <div>
-                        {monthBookmarks.map(
-                          (bookmark: any, bookmarkIndex: number) => {
-                            // Check if this is the last bookmark across all months and pages
-                            const isLastMonth =
-                              monthIndex ===
-                              groupBookmarksByMonth(filteredBookmarks).length -
-                                1;
-                            const isLastBookmarkInMonth =
-                              bookmarkIndex === monthBookmarks.length - 1;
-                            const isLastBookmark =
-                              isLastMonth && isLastBookmarkInMonth;
-
-                            return (
-                              <div
-                                key={bookmark.id}
-                                ref={
-                                  isLastBookmark ? lastBookmarkElementRef : null
-                                }
-                              >
-                                <Bookmark
-                                  bookmark={{
-                                    ...bookmark,
-                                    createdAt: new Date(bookmark.createdAt),
-                                    updatedAt: new Date(bookmark.updatedAt),
-                                  }}
-                                  showOgImage={showOgImage}
-                                  isPublicPage={false}
-                                  folders={folders.data ?? []}
-                                />
-                              </div>
-                            );
-                          }
-                        )}
-                      </div>
                     </div>
-                  );
-                }
-              );
-            })()}
+                  </div>
+                );
+              }
+            )}
         </div>
       </div>
     </>

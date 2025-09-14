@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { folder } from "@/db/schema/folder";
-import { and, asc, eq } from "drizzle-orm";
+import { bookmark } from "@/db/schema/bookmark";
+import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
 import { v7 as uuidv7 } from "uuid";
@@ -8,9 +9,28 @@ import { v7 as uuidv7 } from "uuid";
 export const foldersRouter = router({
   getFolders: protectedProcedure.query(({ ctx }) => {
     return db
-      .select()
+      .select({
+        id: folder.id,
+        createdAt: folder.createdAt,
+        updatedAt: folder.updatedAt,
+        name: folder.name,
+        icon: folder.icon,
+        isShared: folder.isShared,
+        userId: folder.userId,
+        totalBookmarks: count(bookmark.id),
+      })
       .from(folder)
+      .leftJoin(bookmark, eq(folder.id, bookmark.folderId))
       .where(eq(folder.userId, ctx.session.user.id))
+      .groupBy(
+        folder.id,
+        folder.createdAt,
+        folder.updatedAt,
+        folder.name,
+        folder.icon,
+        folder.isShared,
+        folder.userId
+      )
       .orderBy(asc(folder.createdAt));
   }),
   getFolderById: protectedProcedure

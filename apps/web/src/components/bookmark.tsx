@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import type { Folder } from "@/app/bookmarks/page";
 import { formatDate } from "@/utils/format-date";
+import { isValidURL } from "@/utils/url-validator";
 import {
   CircleCheckIcon,
   CopyIcon,
@@ -16,8 +17,8 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import type { Bookmark as BookmarkType } from "server/src/trpc/routers/bookmarks";
+import { toast } from "sonner";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -29,7 +30,6 @@ import {
   ContextMenuTrigger,
 } from "./ui/context-menu";
 import { Input } from "./ui/input";
-import { isValidURL } from "@/utils/url-validator";
 
 export const Bookmark = ({
   bookmark,
@@ -46,6 +46,7 @@ export const Bookmark = ({
   const [title, setTitle] = useState(bookmark.title);
   const [isHovering, setIsHovering] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isFaviconUnavailable, setIsFaviconUnavailable] = useState(false);
 
   const filteredFolders = folders.filter(
     (folder) => folder.id !== bookmark.folderId
@@ -53,10 +54,65 @@ export const Bookmark = ({
 
   const deleteBookmark = useMutation(
     trpc.bookmarks.deleteBookmark.mutationOptions({
+      onMutate: async (bookmarkId) => {
+        // Cancel any outgoing refetches to avoid conflicts
+        await queryClient.cancelQueries({
+          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+        });
+
+        // Snapshot the previous bookmarks data
+        const previousBookmarks = queryClient.getQueryData([
+          "bookmarks",
+          "getBookmarksByFolderId",
+          bookmark.folderId,
+        ]);
+
+        // Optimistically remove the bookmark from the cache
+        queryClient.setQueryData(
+          ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+          (old: any) => {
+            if (!old) return old;
+
+            // Remove the bookmark from all pages of the infinite query
+            const newPages = old.pages.map((page: any[]) =>
+              page.filter((b: any) => b.id !== bookmarkId)
+            );
+
+            return {
+              ...old,
+              pages: newPages,
+            };
+          }
+        );
+
+        // Return context for rollback
+        return { previousBookmarks };
+      },
+      onError: (_, __, context) => {
+        // Rollback to previous state on error
+        if (context?.previousBookmarks) {
+          queryClient.setQueryData(
+            ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+            context.previousBookmarks
+          );
+        }
+      },
       onSuccess: () => {
         queryClient.invalidateQueries({
           queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
         });
+
+        toast.custom(() => (
+          <div className="flex justify-center mx-auto">
+            <div className="bg-popover text-popover-foreground border border-border rounded-full px-4 pr-5 py-2 text-sm font-medium flex items-center gap-2">
+              <CircleCheckIcon
+                className="size-3.5 text-green-400 dark:text-green-600"
+                strokeWidth={2.2}
+              />
+              <h1>Bookmark deleted</h1>
+            </div>
+          </div>
+        ));
       },
     })
   );
@@ -228,16 +284,18 @@ export const Bookmark = ({
               <>
                 {bookmark.faviconUrl &&
                 bookmark.faviconUrl !== "undefined" &&
-                isValidURL(bookmark.faviconUrl) ? (
+                isValidURL(bookmark.faviconUrl) &&
+                !isFaviconUnavailable ? (
                   <Image
                     src={bookmark.faviconUrl}
                     alt="Favicon"
                     className="w-4 h-4 rounded-xs"
                     width={16}
                     height={16}
+                    onError={() => setIsFaviconUnavailable(true)}
                   />
                 ) : (
-                  <Globe className="w-4 h-4 text-neutral-300 dark:text-neutral-600" />
+                  <Globe className="size-4 text-neutral-300 dark:text-neutral-600 min-w-4 min-h-4" />
                 )}
               </>
             )}
@@ -280,7 +338,7 @@ export const Bookmark = ({
               ) : (
                 <p
                   className={`truncate ${
-                    showOgImage ? "" : "max-w-[17rem]"
+                    showOgImage ? "max-w-[22rem]" : "max-w-[17rem]"
                   } inline-block text-sm font-medium`}
                 >
                   {bookmark.title}
@@ -296,13 +354,15 @@ export const Bookmark = ({
                   <>
                     {bookmark.faviconUrl &&
                     bookmark.faviconUrl !== "undefined" &&
-                    isValidURL(bookmark.faviconUrl) ? (
+                    isValidURL(bookmark.faviconUrl) &&
+                    !isFaviconUnavailable ? (
                       <Image
                         src={bookmark.faviconUrl}
                         alt="Favicon"
                         className="size-2.5 rounded-xs"
                         width={16}
                         height={16}
+                        onError={() => setIsFaviconUnavailable(true)}
                       />
                     ) : (
                       <Globe className="size-3 text-neutral-300 dark:text-neutral-600" />
@@ -313,9 +373,9 @@ export const Bookmark = ({
                   <span
                     className={`text-xs text-muted-foreground/70 hidden md:block truncate ${
                       showOgImage
-                        ? "max-w-[27rem]"
+                        ? "max-w-[22rem]"
                         : bookmark.title.length > 20
-                        ? "max-w-[15rem]"
+                        ? "max-w-[13rem]"
                         : "max-w-[20rem]"
                     }`}
                   >
@@ -351,7 +411,7 @@ export const Bookmark = ({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -8 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="text-xs text-muted-foreground/50 hidden md:block tabular-nums"
+                  className="text-xs text-muted-foreground/50 hidden md:block tabular-nums min-w-20 text-right"
                 >
                   {formatDate(new Date(bookmark.createdAt))}
                 </motion.span>

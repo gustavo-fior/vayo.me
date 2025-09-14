@@ -33,8 +33,6 @@ export const getUrlMetadata = async (url: string) => {
   try {
     const metadata = await urlMetadata(url, options);
 
-    console.log(metadata);
-
     return metadata;
   } catch (err) {
     console.log(err);

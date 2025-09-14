@@ -12,14 +12,7 @@ export const queryClient = new QueryClient({
         return;
       }
 
-      toast.error(error.message, {
-        action: {
-          label: "retry",
-          onClick: () => {
-            queryClient.invalidateQueries();
-          },
-        },
-      });
+      toast.error(error.message);
     },
   }),
 });

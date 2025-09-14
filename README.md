@@ -20,8 +20,8 @@ A home for your most amazing links.
 
 ### Final
 
-- [ ] Restore my bookmarks
-- [ ] Update Bookmarks link in portfolio
+- [x] Restore my bookmarks
+- [x] Update Bookmarks link in portfolio
 - [ ] Update logo in CWS, Github, Google, Portfolio
 
 ### V2.1

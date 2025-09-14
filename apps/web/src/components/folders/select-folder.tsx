@@ -88,7 +88,7 @@ export const SelectFolder = ({
         side="bottom"
         sideOffset={4}
         alignOffset={8}
-        className="min-w-40"
+        className="min-w-52"
       >
         {folders?.map((folder, index) => (
           <SelectItem
@@ -99,6 +99,9 @@ export const SelectFolder = ({
             <div className="flex items-center gap-2">
               {folder.icon && <span className="text-base">{folder.icon}</span>}
               <span className="text-sm">{folder.name}</span>
+              <span className="text-xs text-muted-foreground/50">
+                {folder.totalBookmarks}
+              </span>
             </div>
 
             {selectedFolder?.id !== folder.id && (
