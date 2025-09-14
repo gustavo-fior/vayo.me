@@ -163,7 +163,7 @@ export default function Home() {
         transition={{ duration: 0.2, ease: "easeInOut", delay: 0.6 }}
         className="flex items-center mt-6 text-muted-foreground gap-2"
       >
-        <p>Check out our</p>
+        <p>Soon our new</p>
         <Link
           href="https://chromewebstore.google.com/detail/vayo/jaloallboddnknljngplmccchmncogeb"
           className="flex items-center gap-2 cursor-pointer group transition-all duration-200"

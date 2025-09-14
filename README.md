@@ -22,7 +22,7 @@ A home for your most amazing links.
 
 - [x] Restore my bookmarks
 - [x] Update Bookmarks link in portfolio
-- [ ] Update logo in CWS, Github, Google, Portfolio
+- [x] Update logo in CWS, Github, Google, Portfolio
 
 ### V2.1
 
