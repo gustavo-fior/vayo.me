@@ -261,28 +261,28 @@ export default function Bookmarks() {
 
   return (
     <>
-      <div className="sticky top-0 z-10">
-        <div className="flex flex-row items-center justify-between md:py-8 md:px-8 md:pr-8 pr-4 py-6 px-2">
+      <div className="z-10 top-0">
+        <div className="md:fixed absolute md:left-8 md:top-8 left-4 top-6">
           <SelectFolder
             selectedFolder={selectedFolder}
             setSelectedFolder={setSelectedFolder}
             folders={folders.data ?? []}
           />
-          <div className="flex items-center gap-2">
-            <ShareFolder
-              selectedFolder={selectedFolder}
-              setSelectedFolder={setSelectedFolder}
-            />
-            <UserMenu
-              showMonths={showMonths}
-              setShowMonths={setShowMonths}
-              showOgImage={showOgImage}
-              setShowOgImage={setShowOgImage}
-            />
-          </div>
+        </div>
+        <div className="md:fixed absolute md:right-8 md:top-8 right-6 top-6 flex items-center gap-2">
+          <ShareFolder
+            selectedFolder={selectedFolder}
+            setSelectedFolder={setSelectedFolder}
+          />
+          <UserMenu
+            showMonths={showMonths}
+            setShowMonths={setShowMonths}
+            showOgImage={showOgImage}
+            setShowOgImage={setShowOgImage}
+          />
         </div>
       </div>
-      <div className="container mx-auto max-w-2xl px-4 pb-36">
+      <div className="container mx-auto max-w-2xl px-4 pb-36 pt-20 md:pt-32">
         <div className="grid">
           {folders.isSuccess && folders.data && folders.data.length === 0 && (
             <div className="flex flex-col justify-center items-center min-h-[70vh]">
@@ -350,9 +350,10 @@ export default function Bookmarks() {
               <AnimatePresence>
                 {isInvalidUrl && (
                   <motion.div
+                    key="invalid-url"
                     initial={{
                       opacity: 0,
-                      x: 8,
+                      x: 16,
                       filter: "blur(4px)",
                       scale: 0.97,
                     }}
@@ -364,11 +365,11 @@ export default function Bookmarks() {
                     }}
                     exit={{
                       opacity: 0,
-                      x: 8,
+                      x: 16,
                       filter: "blur(4px)",
                       scale: 0.97,
                     }}
-                    transition={{ duration: 0.1, ease: "easeInOut" }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="absolute text-destructive text-sm right-3 top-1/2 -translate-y-1/2"
                   >
                     Invalid URL
@@ -376,9 +377,10 @@ export default function Bookmarks() {
                 )}
                 {!isInvalidUrl && !isBookmarkAdded && (
                   <motion.div
+                    key="shortcut-hint"
                     initial={{
                       opacity: 0,
-                      x: 8,
+                      x: 16,
                       filter: "blur(4px)",
                       scale: 0.97,
                     }}
@@ -390,11 +392,11 @@ export default function Bookmarks() {
                     }}
                     exit={{
                       opacity: 0,
-                      x: 8,
+                      x: 16,
                       filter: "blur(4px)",
                       scale: 0.97,
                     }}
-                    transition={{ duration: 0.1, ease: "easeInOut" }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="absolute flex items-center gap-2 right-3 top-1/2 -translate-y-1/2"
                   >
                     <Shortcut>Shift</Shortcut>
@@ -403,9 +405,10 @@ export default function Bookmarks() {
                 )}
                 {isBookmarkAdded && (
                   <motion.div
+                    key="bookmark-added"
                     initial={{
                       opacity: 0,
-                      x: 8,
+                      x: 16,
                       filter: "blur(4px)",
                       scale: 0.97,
                     }}
@@ -417,11 +420,11 @@ export default function Bookmarks() {
                     }}
                     exit={{
                       opacity: 0,
-                      x: 8,
+                      x: 16,
                       filter: "blur(4px)",
                       scale: 0.97,
                     }}
-                    transition={{ duration: 0.1, ease: "easeInOut" }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="absolute text-green-400 text-sm right-3 top-1/2 -translate-y-1/2 dark:text-green-600"
                   >
                     <Check className="w-4 h-4" />

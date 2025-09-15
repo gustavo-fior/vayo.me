@@ -338,7 +338,9 @@ export const Bookmark = ({
               ) : (
                 <p
                   className={`truncate ${
-                    showOgImage ? "max-w-[22rem]" : "max-w-[17rem]"
+                    showOgImage
+                      ? "md:max-w-[22rem] max-w-[14rem]"
+                      : "max-w-[18rem]"
                   } inline-block text-sm font-medium`}
                 >
                   {bookmark.title}
@@ -371,12 +373,12 @@ export const Bookmark = ({
                 )}
                 {(!isEditingTitle || showOgImage) && (
                   <span
-                    className={`text-xs text-muted-foreground/70 hidden md:block truncate ${
+                    className={`text-xs text-muted-foreground/70 truncate ${
                       showOgImage
-                        ? "max-w-[22rem]"
+                        ? "md:max-w-[22rem] max-w-[14rem]"
                         : bookmark.title.length > 20
-                        ? "max-w-[13rem]"
-                        : "max-w-[20rem]"
+                        ? "md:max-w-[13rem] hidden md:block"
+                        : "md:max-w-[20rem] hidden md:block"
                     }`}
                   >
                     {bookmark.description
