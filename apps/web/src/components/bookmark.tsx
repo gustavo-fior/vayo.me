@@ -421,16 +421,20 @@ export const Bookmark = ({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-44">
-        <ContextMenuItem
-          className="flex items-center gap-2"
-          onClick={() => {
-            setIsEditingTitle(true);
-          }}
-        >
-          <Pencil className="size-3.5 text-neutral-500" />
-          Edit title
-        </ContextMenuItem>
-        <ContextMenuSeparator />
+        {!isPublicPage && (
+          <>
+            <ContextMenuItem
+              className="flex items-center gap-2"
+              onClick={() => {
+                setIsEditingTitle(true);
+              }}
+            >
+              <Pencil className="size-3.5 text-neutral-500" />
+              Edit title
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        )}
         {!isPublicPage && filteredFolders.length > 0 && (
           <>
             <ContextMenuSub>
