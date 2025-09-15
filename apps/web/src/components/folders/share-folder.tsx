@@ -134,7 +134,10 @@ export default function ShareFolder({
                     ? "border-green-200 dark:border-green-900"
                     : "border-input/30 focus-visible:border-input/30"
                 }`}
-                value={`${process.env.NEXT_PUBLIC_APP_URL}/bookmarks/${selectedFolder.id}`}
+                value={`${process.env.NEXT_PUBLIC_APP_URL?.replace(
+                  /^https?:\/\//,
+                  ""
+                )}/bookmarks/${selectedFolder.id}`}
               />
               <div className="bg-gradient-to-r from-transparent via-popover/60 to-popover rounded-sm p-1 absolute right-8 top-1 h-7 w-32 cursor-pointer" />
               <div className="bg-popover rounded-sm p-1 absolute right-2 top-1 h-7 w-6 cursor-pointer" />
