@@ -6,7 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
-import { protectedProcedure, router } from "../trpc";
+import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 const PAGE_SIZE = 30;
 
@@ -34,11 +34,11 @@ export const bookmarksRouter = router({
         .limit(PAGE_SIZE)
         .offset((input.page - 1) * PAGE_SIZE);
     }),
-  getBookmarksFromSharedFolderId: protectedProcedure
+  getBookmarksFromSharedFolderId: publicProcedure
     .input(z.object({ folderId: z.string(), page: z.number() }))
     .query(async ({ input }) => {
       const folderIsShared = await db.query.folder.findFirst({
-        where: eq(folder.id, input.folderId),
+        where: and(eq(folder.id, input.folderId), eq(folder.isShared, true)),
       });
 
       if (!folderIsShared || !folderIsShared.isShared) {

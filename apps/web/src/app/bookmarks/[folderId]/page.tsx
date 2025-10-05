@@ -17,9 +17,12 @@ export default function Bookmarks() {
   const [showOgImage, setShowOgImage] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const folder = useQuery(
-    trpc.folders.getFolderById.queryOptions(folderId as string)
-  );
+  const folder = useQuery({
+    ...trpc.folders.getPublicFolderById.queryOptions(folderId as string),
+    meta: {
+      skipGlobalErrorHandler: true,
+    },
+  });
 
   const bookmarks = useInfiniteQuery({
     queryKey: ["bookmarks", "getBookmarksFromSharedFolderId", folderId],

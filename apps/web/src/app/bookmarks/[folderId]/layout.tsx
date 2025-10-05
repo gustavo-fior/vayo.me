@@ -25,7 +25,7 @@ export async function generateMetadata(
   try {
     // fetch post information
     const folder = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/getFolderById?folderId=${folderId}`
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/getPublicFolderById?folderId=${folderId}`
     ).then((res: Response) => {
       return res.json() as Promise<Folder>;
     });

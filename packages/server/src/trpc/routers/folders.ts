@@ -3,7 +3,7 @@ import { folder } from "@/db/schema/folder";
 import { bookmark } from "@/db/schema/bookmark";
 import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure, router } from "../trpc";
+import { protectedProcedure, publicProcedure, router } from "../trpc";
 import { v7 as uuidv7 } from "uuid";
 
 export const foldersRouter = router({
@@ -43,6 +43,11 @@ export const foldersRouter = router({
         ),
       });
     }),
+  getPublicFolderById: publicProcedure.input(z.string()).query(({ input }) => {
+    return db.query.folder.findFirst({
+      where: and(eq(folder.id, input), eq(folder.isShared, true)),
+    });
+  }),
   createFolder: protectedProcedure
     .input(z.object({ name: z.string(), icon: z.string().optional() }))
     .mutation(({ input, ctx }) => {
