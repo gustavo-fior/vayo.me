@@ -76,16 +76,18 @@ export default function Bookmarks() {
             {notShared ? (
               <div className="flex gap-2 items-center">
                 <Lock className="size-5 text-neutral-500" />
-                <h1 className="text-2xl font-semibold">Not Shared</h1>
+                <h1 className="md:text-lg text-base font-semibold">
+                  Not Shared
+                </h1>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 {folder.data?.icon && (
-                  <span className="md:text-xl text-lg">
+                  <span className="md:text-base text-sm">
                     {folder.data?.icon}
                   </span>
                 )}
-                <h1 className="md:text-2xl text-xl font-semibold">
+                <h1 className="md:text-lg text-base font-semibold">
                   {folder.data?.name}
                 </h1>
               </div>

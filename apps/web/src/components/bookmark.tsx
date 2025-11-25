@@ -30,6 +30,7 @@ import {
   ContextMenuTrigger,
 } from "./ui/context-menu";
 import { Input } from "./ui/input";
+import { getGoogleFavicon } from "@/utils/google-favicon";
 
 export const Bookmark = ({
   bookmark,
@@ -287,7 +288,7 @@ export const Bookmark = ({
                 isValidURL(bookmark.faviconUrl) &&
                 !isFaviconUnavailable ? (
                   <Image
-                    src={bookmark.faviconUrl}
+                    src={getGoogleFavicon(bookmark.url)}
                     alt="Favicon"
                     className="w-4 h-4 rounded-xs"
                     width={16}
@@ -359,7 +360,7 @@ export const Bookmark = ({
                     isValidURL(bookmark.faviconUrl) &&
                     !isFaviconUnavailable ? (
                       <Image
-                        src={bookmark.faviconUrl}
+                        src={getGoogleFavicon(bookmark.url)}
                         alt="Favicon"
                         className="size-2.5 rounded-xs"
                         width={16}
