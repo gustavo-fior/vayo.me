@@ -72,7 +72,7 @@ export default function Bookmarks() {
     <>
       <div className="container mx-auto max-w-2xl px-6 md:py-12 py-6">
         <div className="grid">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between px-2 md:px-2.5">
             {notShared ? (
               <div className="flex gap-2 items-center">
                 <Lock className="size-5 text-neutral-500" />
