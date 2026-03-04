@@ -17,7 +17,9 @@
         "GOOGLE_CLIENT_SECRET",
         "FIRECRAWL_API_KEY",
         "NEXT_PUBLIC_SERVER_URL",
-        "NEXT_PUBLIC_APP_URL"
+        "NEXT_PUBLIC_APP_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_URL"
       ]
     },
     "lint": {
