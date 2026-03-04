@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "@/utils/trpc";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "./ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         {children}
         <ReactQueryDevtools />
+        <Analytics />
       </QueryClientProvider>
       <Toaster
         position="bottom-center"
