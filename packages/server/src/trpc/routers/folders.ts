@@ -5,10 +5,11 @@ import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 import { v7 as uuidv7 } from "uuid";
+import { canvasAsset } from "@/db/schema/canvas-asset";
 
 export const foldersRouter = router({
-  getFolders: protectedProcedure.query(({ ctx }) => {
-    return db
+  getFolders: protectedProcedure.query(async ({ ctx }) => {
+    const folders = await db
       .select({
         id: folder.id,
         createdAt: folder.createdAt,
@@ -19,9 +20,11 @@ export const foldersRouter = router({
         type: folder.type,
         userId: folder.userId,
         totalBookmarks: count(bookmark.id),
+        totalCanvasAssets: count(canvasAsset.id),
       })
       .from(folder)
       .leftJoin(bookmark, eq(folder.id, bookmark.folderId))
+      .leftJoin(canvasAsset, eq(folder.id, canvasAsset.folderId))
       .where(eq(folder.userId, ctx.session.user.id))
       .groupBy(
         folder.id,
@@ -34,6 +37,11 @@ export const foldersRouter = router({
         folder.userId
       )
       .orderBy(asc(folder.createdAt));
+
+    return folders.map((folder) => ({
+      ...folder,
+      totalItems: folder.totalBookmarks + folder.totalCanvasAssets,
+    }));
   }),
   getFolderById: protectedProcedure
     .input(z.string())

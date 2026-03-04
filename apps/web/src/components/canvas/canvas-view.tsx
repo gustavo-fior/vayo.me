@@ -103,11 +103,34 @@ export function CanvasView({
   >(new Map());
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const naturalDimensions = useNaturalDimensions(assets);
-  // Local positions from drag/resize — takes priority over everything
   const localPositionsRef = useRef<
     Map<string, { x: number; y: number; width: number; height: number }>
   >(new Map());
   const prevAssetIdsRef = useRef<string[]>([]);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectedIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+
+  // Marquee state
+  const isMarqueeRef = useRef(false);
+  const marqueeStartRef = useRef({ x: 0, y: 0 });
+  const [marqueeRect, setMarqueeRect] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  // Multi-drag state
+  const multiDragLeaderRef = useRef<string | null>(null);
+  const multiDragStartPositionsRef = useRef<
+    Map<string, { x: number; y: number; width: number; height: number }>
+  >(new Map());
+  const [renderTick, setRenderTick] = useState(0);
 
   // Migrate local positions when asset IDs change (temp ID → real DB ID swap)
   useEffect(() => {
@@ -120,12 +143,20 @@ export function CanvasView({
       const removed = prevIds.filter((id) => !currentSet.has(id));
       const added = currentIds.filter((id) => !prevSet.has(id));
 
-      // If exactly one ID was swapped, migrate its local position
       if (removed.length === 1 && added.length === 1) {
         const pos = localPositionsRef.current.get(removed[0]);
         if (pos) {
           localPositionsRef.current.set(added[0], pos);
           localPositionsRef.current.delete(removed[0]);
+        }
+        // Migrate selection too
+        if (selectedIdsRef.current.has(removed[0])) {
+          setSelectedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(removed[0]);
+            next.add(added[0]);
+            return next;
+          });
         }
       }
     }
@@ -151,6 +182,44 @@ export function CanvasView({
     debounceRef.current = setTimeout(flushUpdates, 1000);
   }, [flushUpdates]);
 
+  // Auto-layout for assets without canvas coordinates
+  const getAssetPosition = useCallback(
+    (asset: CanvasAssetType, index: number) => {
+      const local = localPositionsRef.current.get(asset.id);
+      if (local) return local;
+
+      if (
+        asset.canvasX != null &&
+        asset.canvasY != null &&
+        asset.canvasWidth != null &&
+        asset.canvasHeight != null
+      ) {
+        return {
+          x: asset.canvasX,
+          y: asset.canvasY,
+          width: asset.canvasWidth,
+          height: asset.canvasHeight,
+        };
+      }
+
+      const natural = naturalDimensions.get(asset.id);
+      const w = DEFAULT_ASSET_WIDTH;
+      const h = natural ? Math.round(w * (natural.height / natural.width)) : w;
+
+      const cols = 4;
+      const gap = 20;
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      return {
+        x: col * (w + gap) + gap,
+        y: row * (h + gap) + gap,
+        width: w,
+        height: h,
+      };
+    },
+    [naturalDimensions]
+  );
+
   // Zoom with wheel
   useEffect(() => {
     const el = containerRef.current;
@@ -166,7 +235,6 @@ export function CanvasView({
       const newScale = Math.min(3, Math.max(0.1, scale * delta));
       const scaleChange = newScale / scale;
 
-      // Zoom towards cursor
       setTranslate((prev) => ({
         x: mouseX - scaleChange * (mouseX - prev.x),
         y: mouseY - scaleChange * (mouseY - prev.y),
@@ -178,23 +246,45 @@ export function CanvasView({
     return () => el.removeEventListener("wheel", handleWheel);
   }, [scale]);
 
-  // Pan with mouse drag on background
+  // Pan + marquee with mouse drag on background
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const handleMouseDown = (e: MouseEvent) => {
-      // Only start panning if clicking on the container or canvas layer background
       const target = e.target as HTMLElement;
       if (target !== el && target !== canvasLayerRef.current) return;
 
-      isPanningRef.current = true;
-      panStartRef.current = { x: e.clientX, y: e.clientY };
-      translateStartRef.current = { ...translate };
-      el.style.cursor = "grabbing";
+      if (e.shiftKey) {
+        // Start marquee
+        isMarqueeRef.current = true;
+        marqueeStartRef.current = { x: e.clientX, y: e.clientY };
+        setMarqueeRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 });
+        el.style.cursor = "crosshair";
+      } else {
+        // Pan — also clear selection
+        setSelectedIds(new Set());
+        isPanningRef.current = true;
+        panStartRef.current = { x: e.clientX, y: e.clientY };
+        translateStartRef.current = { ...translate };
+        el.style.cursor = "grabbing";
+      }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (isMarqueeRef.current) {
+        const sx = marqueeStartRef.current.x;
+        const sy = marqueeStartRef.current.y;
+        const cx = e.clientX;
+        const cy = e.clientY;
+        setMarqueeRect({
+          x: Math.min(sx, cx),
+          y: Math.min(sy, cy),
+          width: Math.abs(cx - sx),
+          height: Math.abs(cy - sy),
+        });
+        return;
+      }
       if (!isPanningRef.current) return;
       const dx = e.clientX - panStartRef.current.x;
       const dy = e.clientY - panStartRef.current.y;
@@ -205,6 +295,65 @@ export function CanvasView({
     };
 
     const handleMouseUp = () => {
+      if (isMarqueeRef.current) {
+        isMarqueeRef.current = false;
+        el.style.cursor = "grab";
+
+        // Intersection test
+        const containerRect = el.getBoundingClientRect();
+        const mRect = marqueeStartRef.current;
+        // We need the final marquee in screen space — read from state via DOM
+        // Actually we have the start and can compute from the last mouse position
+        // But easier: read the marquee rect state. Since we're in a handler that
+        // just set it, let's use a direct approach with the ref values.
+        setMarqueeRect((currentMarquee) => {
+          if (
+            !currentMarquee ||
+            (currentMarquee.width < 3 && currentMarquee.height < 3)
+          ) {
+            return null;
+          }
+
+          // Convert screen-space marquee to canvas-space
+          const toCanvas = (screenX: number, screenY: number) => ({
+            x: (screenX - containerRect.left - translate.x) / scale,
+            y: (screenY - containerRect.top - translate.y) / scale,
+          });
+
+          const topLeft = toCanvas(currentMarquee.x, currentMarquee.y);
+          const bottomRight = toCanvas(
+            currentMarquee.x + currentMarquee.width,
+            currentMarquee.y + currentMarquee.height
+          );
+
+          const marqueeCanvas = {
+            x: topLeft.x,
+            y: topLeft.y,
+            width: bottomRight.x - topLeft.x,
+            height: bottomRight.y - topLeft.y,
+          };
+
+          const newSelected = new Set<string>();
+          assets.forEach((asset, index) => {
+            const pos = getAssetPosition(asset, index);
+            // AABB overlap test
+            if (
+              pos.x < marqueeCanvas.x + marqueeCanvas.width &&
+              pos.x + pos.width > marqueeCanvas.x &&
+              pos.y < marqueeCanvas.y + marqueeCanvas.height &&
+              pos.y + pos.height > marqueeCanvas.y
+            ) {
+              newSelected.add(asset.id);
+            }
+          });
+
+          setSelectedIds(newSelected);
+          return null;
+        });
+
+        return;
+      }
+
       if (isPanningRef.current) {
         isPanningRef.current = false;
         el.style.cursor = "grab";
@@ -220,43 +369,18 @@ export function CanvasView({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [translate]);
+  }, [translate, scale, assets, getAssetPosition]);
 
-  // Auto-layout for assets without canvas coordinates
-  const getAssetPosition = (asset: CanvasAssetType, index: number) => {
-    // Local drag/resize position takes priority (prevents remount flicker)
-    const local = localPositionsRef.current.get(asset.id);
-    if (local) return local;
-
-    if (
-      asset.canvasX != null &&
-      asset.canvasY != null &&
-      asset.canvasWidth != null &&
-      asset.canvasHeight != null
-    ) {
-      return {
-        x: asset.canvasX,
-        y: asset.canvasY,
-        width: asset.canvasWidth,
-        height: asset.canvasHeight,
-      };
-    }
-
-    const natural = naturalDimensions.get(asset.id);
-    const w = DEFAULT_ASSET_WIDTH;
-    const h = natural ? Math.round(w * (natural.height / natural.width)) : w;
-
-    const cols = 4;
-    const gap = 20;
-    const col = index % cols;
-    const row = Math.floor(index / cols);
-    return {
-      x: col * (w + gap) + gap,
-      y: row * (h + gap) + gap,
-      width: w,
-      height: h,
+  // Escape to clear selection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedIds(new Set());
+      }
     };
-  };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <div
@@ -281,10 +405,26 @@ export function CanvasView({
       >
         {assets.map((asset, index) => {
           const pos = getAssetPosition(asset, index);
+          const isSelected = selectedIds.has(asset.id);
+          const isFollower =
+            multiDragLeaderRef.current !== null &&
+            multiDragLeaderRef.current !== asset.id &&
+            isSelected;
+
           return (
             <Rnd
-              key={`${asset.id}-${pos.width}-${pos.height}`}
-              style={{ zIndex: asset.canvasZIndex }}
+              key={asset.id}
+              style={{
+                zIndex: asset.canvasZIndex,
+                outline: isSelected ? "2px solid var(--primary)" : undefined,
+                outlineOffset: isSelected ? "2px" : undefined,
+              }}
+              position={isFollower ? { x: pos.x, y: pos.y } : undefined}
+              size={
+                isFollower
+                  ? { width: pos.width, height: pos.height }
+                  : undefined
+              }
               default={{
                 x: pos.x,
                 y: pos.y,
@@ -295,21 +435,131 @@ export function CanvasView({
               minHeight={MIN_SIZE}
               lockAspectRatio
               scale={scale}
-              onDragStop={(_e, d) => {
-                const updated = {
-                  x: d.x,
-                  y: d.y,
-                  width: pos.width,
-                  height: pos.height,
-                };
-                localPositionsRef.current.set(asset.id, updated);
-                pendingUpdatesRef.current.set(asset.id, {
-                  canvasX: d.x,
-                  canvasY: d.y,
-                  canvasWidth: pos.width,
-                  canvasHeight: pos.height,
+              onMouseDown={(e: MouseEvent) => {
+                if (e.shiftKey) {
+                  // Toggle selection
+                  e.stopPropagation();
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(asset.id)) {
+                      next.delete(asset.id);
+                    } else {
+                      next.add(asset.id);
+                    }
+                    return next;
+                  });
+                } else if (!selectedIdsRef.current.has(asset.id)) {
+                  // Click on unselected asset → select only it
+                  setSelectedIds(new Set([asset.id]));
+                }
+              }}
+              onDragStart={(_e, _d) => {
+                const sel = selectedIdsRef.current;
+                if (sel.has(asset.id) && sel.size > 1) {
+                  // This asset is the drag leader
+                  multiDragLeaderRef.current = asset.id;
+                  // Snapshot all selected positions
+                  const snapshot = new Map<
+                    string,
+                    { x: number; y: number; width: number; height: number }
+                  >();
+                  assets.forEach((a, i) => {
+                    if (sel.has(a.id)) {
+                      snapshot.set(a.id, { ...getAssetPosition(a, i) });
+                    }
+                  });
+                  multiDragStartPositionsRef.current = snapshot;
+                } else {
+                  multiDragLeaderRef.current = null;
+                }
+              }}
+              onDrag={(_e, d) => {
+                if (multiDragLeaderRef.current !== asset.id) return;
+                const startPos = multiDragStartPositionsRef.current.get(
+                  asset.id
+                );
+                if (!startPos) return;
+
+                const dx = d.x - startPos.x;
+                const dy = d.y - startPos.y;
+
+                // Move all followers
+                multiDragStartPositionsRef.current.forEach((origPos, id) => {
+                  if (id === asset.id) return; // leader is moved by Rnd
+                  localPositionsRef.current.set(id, {
+                    x: origPos.x + dx,
+                    y: origPos.y + dy,
+                    width: origPos.width,
+                    height: origPos.height,
+                  });
                 });
-                scheduleFlush();
+                setRenderTick((t) => t + 1);
+              }}
+              onDragStop={(_e, d) => {
+                if (multiDragLeaderRef.current === asset.id) {
+                  // Persist leader
+                  const leaderStart = multiDragStartPositionsRef.current.get(
+                    asset.id
+                  );
+                  if (leaderStart) {
+                    const dx = d.x - leaderStart.x;
+                    const dy = d.y - leaderStart.y;
+
+                    // Persist leader
+                    localPositionsRef.current.set(asset.id, {
+                      x: d.x,
+                      y: d.y,
+                      width: leaderStart.width,
+                      height: leaderStart.height,
+                    });
+                    pendingUpdatesRef.current.set(asset.id, {
+                      canvasX: d.x,
+                      canvasY: d.y,
+                      canvasWidth: leaderStart.width,
+                      canvasHeight: leaderStart.height,
+                    });
+
+                    // Persist followers
+                    multiDragStartPositionsRef.current.forEach(
+                      (origPos, id) => {
+                        if (id === asset.id) return;
+                        const newPos = {
+                          x: origPos.x + dx,
+                          y: origPos.y + dy,
+                          width: origPos.width,
+                          height: origPos.height,
+                        };
+                        localPositionsRef.current.set(id, newPos);
+                        pendingUpdatesRef.current.set(id, {
+                          canvasX: newPos.x,
+                          canvasY: newPos.y,
+                          canvasWidth: newPos.width,
+                          canvasHeight: newPos.height,
+                        });
+                      }
+                    );
+                  }
+
+                  multiDragLeaderRef.current = null;
+                  multiDragStartPositionsRef.current.clear();
+                  scheduleFlush();
+                } else {
+                  // Single asset drag
+                  const updated = {
+                    x: d.x,
+                    y: d.y,
+                    width: pos.width,
+                    height: pos.height,
+                  };
+                  localPositionsRef.current.set(asset.id, updated);
+                  pendingUpdatesRef.current.set(asset.id, {
+                    canvasX: d.x,
+                    canvasY: d.y,
+                    canvasWidth: pos.width,
+                    canvasHeight: pos.height,
+                  });
+                  scheduleFlush();
+                }
               }}
               onResizeStop={(_e, _dir, ref, _delta, position) => {
                 const w = parseFloat(ref.style.width);
@@ -514,6 +764,26 @@ export function CanvasView({
           );
         })}
       </div>
+
+      {/* Marquee selection overlay */}
+      {marqueeRect && (
+        <div
+          style={{
+            position: "absolute",
+            left:
+              marqueeRect.x -
+              (containerRef.current?.getBoundingClientRect().left ?? 0),
+            top:
+              marqueeRect.y -
+              (containerRef.current?.getBoundingClientRect().top ?? 0),
+            width: marqueeRect.width,
+            height: marqueeRect.height,
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+          className="border border-primary/40 bg-primary/10 rounded-sm"
+        />
+      )}
 
       {/* Zoom indicator */}
       <div className="absolute bottom-4 right-4 bg-popover backdrop-blur-sm text-popover-foreground text-xs px-2.5 py-1 rounded-sm border border-border tabular-nums">

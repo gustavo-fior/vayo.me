@@ -38,7 +38,7 @@ export type Folder = {
   createdAt: string;
   updatedAt: string;
   userId: string;
-  totalBookmarks: number;
+  totalItems: number;
 };
 
 export default function Bookmarks() {
