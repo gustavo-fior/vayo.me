@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import type { Folder } from "@/app/bookmarks/page";
+import { ImageIcon, LayoutPanelLeftIcon } from "lucide-react";
 
 export const SelectFolder = ({
   selectedFolder,
@@ -94,18 +95,23 @@ export const SelectFolder = ({
           <SelectItem
             key={folder.id}
             value={folder.id}
-            className="cursor-pointer select-none flex items-center justify-between w-full group"
+            className="cursor-pointer select-none flex items-center h-9 justify-between w-full group"
           >
-            <div className="flex items-center gap-2">
-              {folder.icon && <span className="text-base">{folder.icon}</span>}
+            <div className="flex items-center gap-2.5">
+              {folder.icon && <span className="text-sm">{folder.icon}</span>}
               <span className="text-sm">{folder.name}</span>
-              <span className="text-xs text-muted-foreground/50">
-                {folder.totalBookmarks}
-              </span>
+              {folder.type === "canvas" && (
+                <LayoutPanelLeftIcon className="size-3 stroke-[1.5] text-muted-foreground/50 fill-current/10 dark:fill-current/20" />
+              )}
+              {folder.type !== "canvas" && (
+                <span className="text-xs text-muted-foreground/50">
+                  {folder.totalBookmarks}
+                </span>
+              )}
             </div>
 
             {selectedFolder?.id !== folder.id && (
-              <span className="absolute right-1.5 flex text-xs items-center justify-center bg-muted/50 rounded-[3px] p-[0.5px] px-1 border border-border/30 group-hover:bg-transparent group-hover:border-transparent">
+              <span className="absolute right-1.5 flex text-xs items-center justify-center bg-muted/50 rounded-[3px] p-[0.5px] px-1 border border-border/30 group-hover:bg-transparent group-hover:border-transparent tabular-nums">
                 {index + 1}
               </span>
             )}

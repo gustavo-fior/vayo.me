@@ -41,19 +41,19 @@ export default function ShareFolder({
         <Button
           variant="ghost"
           size="icon"
-          className="select-none ring-0 active:ring-0 focus:ring-0 focus-visible:ring-0"
+          className="select-none ring-0 active:ring-0 focus:ring-0 focus-visible:ring-0 active:scale-100"
         >
-          <Share />
+          <Share className="stroke-[1.5]" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
         align="end"
         sideOffset={12}
         alignOffset={-24}
-        className="w-72 p-1"
+        className="w-80 p-1"
       >
         <div className="flex justify-between items-center pr-3">
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-0.5">
             <DropdownMenuLabel className="pb-0 select-none">
               Visibility
             </DropdownMenuLabel>
@@ -79,10 +79,10 @@ export default function ShareFolder({
         >
           <div className="flex gap-2 items-center">
             <Globe
-              className={`size-3.5 transition-colors duration-200 ${
+              className={`size-3.5 stroke-[1.5] transition-colors duration-200 ${
                 selectedFolder.isShared
-                  ? "text-green-400 dark:text-green-600"
-                  : "text-neutral-400 dark:text-neutral-500"
+                  ? "text-green-400 dark:text-green-600 fill-current/10 dark:fill-current/20"
+                  : "text-neutral-400 dark:text-neutral-500 fill-current/10 dark:fill-current/20"
               }`}
             />
             <Label className="cursor-pointer">Public</Label>

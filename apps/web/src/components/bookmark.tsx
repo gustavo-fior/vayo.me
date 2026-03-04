@@ -105,7 +105,7 @@ export const Bookmark = ({
 
         toast.custom(() => (
           <div className="flex justify-center mx-auto">
-            <div className="bg-popover text-popover-foreground border border-border rounded-full px-4 pr-5 py-2 text-sm font-medium flex items-center gap-2">
+            <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-5 py-2 text-sm font-medium flex items-center gap-2.5">
               <CircleCheckIcon
                 className="size-3.5 text-green-400 dark:text-green-600"
                 strokeWidth={2.2}
@@ -173,7 +173,7 @@ export const Bookmark = ({
         });
         toast.custom(() => (
           <div className="flex justify-center mx-auto">
-            <div className="bg-popover text-popover-foreground border border-border rounded-full px-4 pr-5 py-2 text-sm font-medium flex items-center gap-2">
+            <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
               <CircleCheckIcon
                 className="size-3.5 text-green-400 dark:text-green-600"
                 strokeWidth={2.2}
@@ -378,7 +378,7 @@ export const Bookmark = ({
                       showOgImage
                         ? "md:max-w-[22rem] max-w-[14rem]"
                         : bookmark.title.length > 20
-                        ? "md:max-w-[13rem] hidden md:block"
+                        ? "md:max-w-[12rem] hidden md:block"
                         : "md:max-w-[20rem] hidden md:block"
                     }`}
                   >
@@ -406,7 +406,7 @@ export const Bookmark = ({
                     deleteBookmark.mutate(bookmark.id);
                   }}
                 >
-                  <X className="size-3.5" />
+                  <X className="size-3.5 stroke-[1.5]" />
                 </motion.button>
               ) : (
                 <motion.span
@@ -432,12 +432,33 @@ export const Bookmark = ({
                 setIsEditingTitle(true);
               }}
             >
-              <Pencil className="size-3.5 text-neutral-500" />
+              <Pencil className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
               Edit title
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
         )}
+        <ContextMenuItem
+          onClick={() => {
+            navigator.clipboard.writeText(bookmark.url);
+            toast.custom(() => (
+              <div className="flex justify-center mx-auto">
+                <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+                  <CircleCheckIcon
+                    className="size-3.5 text-green-400 dark:text-green-600 fill-green-400/20 dark:fill-green-600/30"
+                    strokeWidth={2.2}
+                  />
+                  <h1>Link copied to clipboard</h1>
+                </div>
+              </div>
+            ));
+          }}
+          className="flex items-center gap-2"
+        >
+          <CopyIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+          Copy link
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         {!isPublicPage && filteredFolders.length > 0 && (
           <>
             <ContextMenuSub>
@@ -445,7 +466,7 @@ export const Bookmark = ({
                 inset
                 className="justify-start cursor-pointer"
               >
-                <FolderOpenIcon className="size-3.5 text-neutral-500 mr-2" />
+                <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
                 Move
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-44">
@@ -470,29 +491,8 @@ export const Bookmark = ({
                 ))}
               </ContextMenuSubContent>
             </ContextMenuSub>
-            <ContextMenuSeparator />
           </>
         )}
-        <ContextMenuItem
-          onClick={() => {
-            navigator.clipboard.writeText(bookmark.url);
-            toast.custom(() => (
-              <div className="flex justify-center mx-auto">
-                <div className="bg-popover text-popover-foreground border border-border rounded-full px-4 pr-5 py-2 text-sm font-medium flex items-center gap-2">
-                  <CircleCheckIcon
-                    className="size-3.5 text-green-400 dark:text-green-600"
-                    strokeWidth={2.2}
-                  />
-                  <h1>Link copied to clipboard</h1>
-                </div>
-              </div>
-            ));
-          }}
-          className="flex items-center gap-2"
-        >
-          <CopyIcon className="size-3.5 text-neutral-500" />
-          Copy link
-        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );

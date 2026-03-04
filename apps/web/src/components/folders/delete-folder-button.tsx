@@ -47,13 +47,13 @@ export const DeleteFolderButton = ({
       isPending={deleteFolder.isPending}
       pendingText={
         <div className="flex items-center gap-2 z-10 font-normal">
-          <Trash2 className="size-3.5" />
+          <Trash2 className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
           Deleting...
         </div>
       }
     >
       <div className="flex items-center gap-2 z-10 font-normal">
-        <Trash2 className="size-3.5" />
+        <Trash2 className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
         Delete
       </div>
     </HoldToDeleteButton>

@@ -24,12 +24,17 @@ import { getCommonFavicons, getWebsiteName } from "@/utils/get-common-favicons";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Shortcut } from "@/components/ui/shortcut";
+import {
+  CanvasFolderView,
+  useCanvasControls,
+} from "@/components/canvas/canvas-folder-view";
 
 export type Folder = {
   id: string;
   name: string;
   icon: string | null;
   isShared: boolean;
+  type: "bookmarks" | "canvas";
   createdAt: string;
   updatedAt: string;
   userId: string;
@@ -51,6 +56,9 @@ export default function Bookmarks() {
   const { data: session, isPending: isSessionPending } =
     authClient.useSession();
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const canvasControls = useCanvasControls();
+
+  const isCanvasFolder = selectedFolder?.type === "canvas";
 
   const folders = useQuery(trpc.folders.getFolders.queryOptions());
 
@@ -172,6 +180,15 @@ export default function Bookmarks() {
   useHotkeys("v", () => setShowOgImage(!showOgImage));
   useHotkeys("m", () => setShowMonths(!showMonths));
   useHotkeys("t", () => setTheme(theme === "dark" ? "light" : "dark"));
+  useHotkeys("w", () => {
+    if (isCanvasFolder) canvasControls.setFullWidth(!canvasControls.fullWidth);
+  });
+  useHotkeys("c", () => {
+    if (isCanvasFolder) canvasControls.setViewMode("canvas");
+  });
+  useHotkeys("g", () => {
+    if (isCanvasFolder) canvasControls.setViewMode("masonry");
+  });
   useHotkeys("shift+f", (event) => {
     event.preventDefault();
     if (inputRef.current) {
@@ -279,226 +296,242 @@ export default function Bookmarks() {
             setShowMonths={setShowMonths}
             showOgImage={showOgImage}
             setShowOgImage={setShowOgImage}
+            isCanvasFolder={isCanvasFolder}
+            canvasControls={isCanvasFolder ? canvasControls : undefined}
           />
         </div>
       </div>
-      <div className="container mx-auto max-w-2xl px-4 pb-36 pt-20 md:pt-32">
-        <div className="grid">
+      <div
+        className={`container mx-auto ${
+          isCanvasFolder && canvasControls.viewMode === "canvas"
+            ? "max-w-full px-0 pb-0 pt-0 md:pt-0"
+            : isCanvasFolder && canvasControls.fullWidth
+            ? "max-w-full md:px-8 pt-20 md:pt-24 px-6"
+            : isCanvasFolder
+            ? "max-w-6xl pt-20 md:pt-32 md:px-0 px-6"
+            : "max-w-2xl px-4 pb-36 pt-20 md:pt-32"
+        }`}
+      >
+        <div className={`grid  ${isCanvasFolder ? "h-full" : ""}`}>
           {folders.isSuccess && folders.data && folders.data.length === 0 && (
             <div className="flex flex-col justify-center items-center min-h-[70vh]">
               <CreateFirstFolder setSelectedFolder={setSelectedFolder} />
             </div>
           )}
-          {folders.isSuccess && folders.data && folders.data.length > 0 && (
-            <div className="relative">
-              <Input
-                placeholder="https://"
-                className={cn(
-                  isBookmarkAdded &&
-                    "focus-visible:border-green-400 rounded-md focus-visible:ring-green-400/20 focus-visible:ring-2 dark:focus-visible:border-green-600 dark:focus-visible:ring-green-600/20",
-                  isInvalidUrl &&
-                    "animate-shake focus-visible:border-destructive rounded-md focus-visible:ring-destructive/20 focus-visible:ring-2"
-                )}
-                ref={inputRef}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    if (isValidURL(url)) {
-                      setUrl("");
-                      createBookmark.mutate({
-                        url: addHttpIfMissing(url),
-                        folderId: selectedFolder!.id!,
-                      });
-                    } else {
-                      setIsInvalidUrl(true);
-                      setTimeout(() => {
-                        setIsInvalidUrl(false);
-                      }, 2000);
-                    }
-                  }
-                }}
-                onPaste={(e) => {
-                  // Get the pasted text
-                  const pastedText = e.clipboardData.getData("text");
-
-                  // Check if the pasted text is a valid URL
-                  if (isValidURL(pastedText)) {
-                    // Prevent default paste behavior
-                    e.preventDefault();
-
-                    // Set the URL in state and create bookmark
-                    setUrl(pastedText);
-
-                    // Small delay to ensure state update, then create bookmark
-                    setTimeout(() => {
-                      createBookmark.mutate({
-                        url: addHttpIfMissing(pastedText),
-                        folderId: selectedFolder!.id!,
-                      });
-                      setUrl("");
-                    }, 0);
-                  } else {
-                    setIsInvalidUrl(true);
-                    setTimeout(() => {
-                      setIsInvalidUrl(false);
-                    }, 2000);
-                  }
-                }}
-              />
-
-              <AnimatePresence>
-                {isInvalidUrl && (
-                  <motion.div
-                    key="invalid-url"
-                    initial={{
-                      opacity: 0,
-                      x: 16,
-                      filter: "blur(4px)",
-                      scale: 0.97,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      x: 0,
-                      filter: "blur(0px)",
-                      scale: 1,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      x: 16,
-                      filter: "blur(4px)",
-                      scale: 0.97,
-                    }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="absolute text-destructive text-sm right-3 top-1/2 -translate-y-1/2"
-                  >
-                    Invalid URL
-                  </motion.div>
-                )}
-                {!isInvalidUrl && !isBookmarkAdded && (
-                  <motion.div
-                    key="shortcut-hint"
-                    initial={{
-                      opacity: 0,
-                      x: 16,
-                      filter: "blur(4px)",
-                      scale: 0.97,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      x: 0,
-                      filter: "blur(0px)",
-                      scale: 1,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      x: 16,
-                      filter: "blur(4px)",
-                      scale: 0.97,
-                    }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="absolute flex items-center gap-2 right-3 top-1/2 -translate-y-1/2"
-                  >
-                    <Shortcut>Shift</Shortcut>
-                    <Shortcut>F</Shortcut>
-                  </motion.div>
-                )}
-                {isBookmarkAdded && (
-                  <motion.div
-                    key="bookmark-added"
-                    initial={{
-                      opacity: 0,
-                      x: 16,
-                      filter: "blur(4px)",
-                      scale: 0.97,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      x: 0,
-                      filter: "blur(0px)",
-                      scale: 1,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      x: 16,
-                      filter: "blur(4px)",
-                      scale: 0.97,
-                    }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
-                    className="absolute text-green-400 text-sm right-3 top-1/2 -translate-y-1/2 dark:text-green-600"
-                  >
-                    <Check className="w-4 h-4" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {!showMonths && folders.data && folders.data.length > 0 && (
-            <hr className="mt-6 mb-2 opacity-50" />
-          )}
-
-          {bookmarks.isSuccess &&
-            folders.data &&
-            folders.data.length > 0 &&
-            bookmarks.data?.pages.every((page: any[]) => page.length === 0) && (
-              <div className="mt-24">
-                <EmptyState
-                  title="No bookmarks here"
-                  Icon={BookmarkIcon}
-                  description="Add some cool links to get started"
-                />
-              </div>
-            )}
-
-          {bookmarks.data &&
-            filteredAndGroupedBookmarks.map(
-              ([month, monthBookmarks], monthIndex) => {
-                return (
-                  <div key={month} className="space-y-2">
-                    {showMonths && (
-                      <h2 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8">
-                        {month}
-                      </h2>
+          {isCanvasFolder && selectedFolder ? (
+            <CanvasFolderView
+              folderId={selectedFolder.id}
+              canvasControls={canvasControls}
+            />
+          ) : (
+            <>
+              {folders.isSuccess && folders.data && folders.data.length > 0 && (
+                <div className="relative h-9">
+                  <Input
+                    placeholder="https://"
+                    className={cn(
+                      isBookmarkAdded &&
+                        "focus-visible:border-green-400 rounded-md focus-visible:ring-green-400/20 focus-visible:ring-2 dark:focus-visible:border-green-600 dark:focus-visible:ring-green-600/20",
+                      isInvalidUrl &&
+                        "animate-shake focus-visible:border-destructive rounded-md focus-visible:ring-destructive/20 focus-visible:ring-2"
                     )}
-                    <div>
-                      {monthBookmarks.map(
-                        (bookmark: any, bookmarkIndex: number) => {
-                          // Check if this is the last bookmark across all months and pages
-                          const isLastMonth =
-                            monthIndex ===
-                            filteredAndGroupedBookmarks.length - 1;
-                          const isLastBookmarkInMonth =
-                            bookmarkIndex === monthBookmarks.length - 1;
-                          const isLastBookmark =
-                            isLastMonth && isLastBookmarkInMonth;
-
-                          return (
-                            <div
-                              key={bookmark.id}
-                              ref={
-                                isLastBookmark ? lastBookmarkElementRef : null
-                              }
-                            >
-                              <Bookmark
-                                bookmark={{
-                                  ...bookmark,
-                                  createdAt: new Date(bookmark.createdAt),
-                                  updatedAt: new Date(bookmark.updatedAt),
-                                }}
-                                showOgImage={showOgImage}
-                                isPublicPage={false}
-                                folders={folders.data ?? []}
-                              />
-                            </div>
-                          );
+                    ref={inputRef}
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (isValidURL(url)) {
+                          setUrl("");
+                          createBookmark.mutate({
+                            url: addHttpIfMissing(url),
+                            folderId: selectedFolder!.id!,
+                          });
+                        } else {
+                          setIsInvalidUrl(true);
+                          setTimeout(() => {
+                            setIsInvalidUrl(false);
+                          }, 2000);
                         }
-                      )}
-                    </div>
+                      }
+                    }}
+                    onPaste={(e) => {
+                      const pastedText = e.clipboardData.getData("text");
+                      if (isValidURL(pastedText)) {
+                        e.preventDefault();
+                        setUrl(pastedText);
+                        setTimeout(() => {
+                          createBookmark.mutate({
+                            url: addHttpIfMissing(pastedText),
+                            folderId: selectedFolder!.id!,
+                          });
+                          setUrl("");
+                        }, 0);
+                      } else {
+                        setIsInvalidUrl(true);
+                        setTimeout(() => {
+                          setIsInvalidUrl(false);
+                        }, 2000);
+                      }
+                    }}
+                  />
+
+                  <AnimatePresence>
+                    {isInvalidUrl && (
+                      <motion.div
+                        key="invalid-url"
+                        initial={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          x: 0,
+                          filter: "blur(0px)",
+                          scale: 1,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="absolute text-destructive text-sm right-3 top-1/2 -translate-y-1/2"
+                      >
+                        Invalid URL
+                      </motion.div>
+                    )}
+                    {!isInvalidUrl && !isBookmarkAdded && (
+                      <motion.div
+                        key="shortcut-hint"
+                        initial={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          x: 0,
+                          filter: "blur(0px)",
+                          scale: 1,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="absolute flex items-center gap-2 right-3 top-1/2 -translate-y-1/2"
+                      >
+                        <Shortcut>Shift</Shortcut>
+                        <Shortcut>F</Shortcut>
+                      </motion.div>
+                    )}
+                    {isBookmarkAdded && (
+                      <motion.div
+                        key="bookmark-added"
+                        initial={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          x: 0,
+                          filter: "blur(0px)",
+                          scale: 1,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="absolute text-green-400 text-sm right-3 top-1/2 -translate-y-1/2 dark:text-green-600"
+                      >
+                        <Check className="w-4 h-4" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {!showMonths && folders.data && folders.data.length > 0 && (
+                <hr className="mt-6 mb-2 opacity-50" />
+              )}
+
+              {bookmarks.isSuccess &&
+                folders.data &&
+                folders.data.length > 0 &&
+                bookmarks.data?.pages.every(
+                  (page: any[]) => page.length === 0
+                ) && (
+                  <div className="mt-24">
+                    <EmptyState
+                      title="No bookmarks here"
+                      Icon={BookmarkIcon}
+                      description="Add some cool links to get started"
+                    />
                   </div>
-                );
-              }
-            )}
+                )}
+
+              {bookmarks.data &&
+                filteredAndGroupedBookmarks.map(
+                  ([month, monthBookmarks], monthIndex) => {
+                    return (
+                      <div key={month} className="space-y-2">
+                        {showMonths && (
+                          <h2 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8">
+                            {month}
+                          </h2>
+                        )}
+                        <div>
+                          {monthBookmarks.map(
+                            (bookmark: any, bookmarkIndex: number) => {
+                              const isLastMonth =
+                                monthIndex ===
+                                filteredAndGroupedBookmarks.length - 1;
+                              const isLastBookmarkInMonth =
+                                bookmarkIndex === monthBookmarks.length - 1;
+                              const isLastBookmark =
+                                isLastMonth && isLastBookmarkInMonth;
+
+                              return (
+                                <div
+                                  key={bookmark.id}
+                                  ref={
+                                    isLastBookmark
+                                      ? lastBookmarkElementRef
+                                      : null
+                                  }
+                                >
+                                  <Bookmark
+                                    bookmark={{
+                                      ...bookmark,
+                                      createdAt: new Date(bookmark.createdAt),
+                                      updatedAt: new Date(bookmark.updatedAt),
+                                    }}
+                                    showOgImage={showOgImage}
+                                    isPublicPage={false}
+                                    folders={folders.data ?? []}
+                                  />
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+            </>
+          )}
         </div>
       </div>
     </>

@@ -123,7 +123,7 @@ export default function Home() {
         // Reset position to center
         setGlitchTransform("translate(0px, 0px)");
       }, glitchDuration);
-    }, 1000 + Math.random() * 4000); // Every 4-8 seconds
+    }, 1000 + Math.random() * 9000); // Every 4-8 seconds
 
     return () => clearInterval(glitchInterval);
   }, []);

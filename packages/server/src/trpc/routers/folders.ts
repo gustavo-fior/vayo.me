@@ -16,6 +16,7 @@ export const foldersRouter = router({
         name: folder.name,
         icon: folder.icon,
         isShared: folder.isShared,
+        type: folder.type,
         userId: folder.userId,
         totalBookmarks: count(bookmark.id),
       })
@@ -29,6 +30,7 @@ export const foldersRouter = router({
         folder.name,
         folder.icon,
         folder.isShared,
+        folder.type,
         folder.userId
       )
       .orderBy(asc(folder.createdAt));
@@ -49,7 +51,13 @@ export const foldersRouter = router({
     });
   }),
   createFolder: protectedProcedure
-    .input(z.object({ name: z.string(), icon: z.string().optional() }))
+    .input(
+      z.object({
+        name: z.string(),
+        icon: z.string().optional(),
+        type: z.enum(["bookmarks", "canvas"]).optional().default("bookmarks"),
+      })
+    )
     .mutation(({ input, ctx }) => {
       return db
         .insert(folder)
