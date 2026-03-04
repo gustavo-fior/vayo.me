@@ -50,7 +50,7 @@ export const CreateFolderDialog = ({
         setName("");
         setFolderType("bookmarks");
         setOpen(false);
-        setSelectedFolder({ ...data[0], totalBookmarks: 0 });
+        setSelectedFolder({ ...data[0], totalItems: 0 });
         setSelectOpen?.(false);
       },
       onError: () => {
