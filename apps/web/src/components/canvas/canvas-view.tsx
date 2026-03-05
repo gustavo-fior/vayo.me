@@ -76,12 +76,14 @@ export function CanvasView({
   assets,
   onDelete,
   onUpdateZIndex,
+  onPreview,
 }: {
   assets: CanvasAssetType[];
   onDelete?: (id: string) => void;
   onUpdateZIndex?: (
     updates: Array<{ id: string; canvasZIndex: number }>
   ) => void;
+  onPreview?: (asset: CanvasAssetType) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasLayerRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,9 @@ export function CanvasView({
     width: number;
     height: number;
   } | null>(null);
+
+  // Per-asset drag-moved tracking for click vs drag distinction
+  const dragMovedRef = useRef<Map<string, boolean>>(new Map());
 
   // Multi-drag state
   const multiDragLeaderRef = useRef<string | null>(null);
@@ -454,6 +459,7 @@ export function CanvasView({
                 }
               }}
               onDragStart={(_e, _d) => {
+                dragMovedRef.current.set(asset.id, false);
                 const sel = selectedIdsRef.current;
                 if (sel.has(asset.id) && sel.size > 1) {
                   // This asset is the drag leader
@@ -474,6 +480,7 @@ export function CanvasView({
                 }
               }}
               onDrag={(_e, d) => {
+                dragMovedRef.current.set(asset.id, true);
                 if (multiDragLeaderRef.current !== asset.id) return;
                 const startPos = multiDragStartPositionsRef.current.get(
                   asset.id
@@ -583,7 +590,14 @@ export function CanvasView({
             >
               <ContextMenu>
                 <ContextMenuTrigger className="w-full h-full">
-                  <div className="w-full h-full rounded-md overflow-hidden group-hover:border-primary/40 transition-colors shadow-sm">
+                  <div
+                    className="w-full h-full rounded-md overflow-hidden group-hover:border-primary/40 transition-colors shadow-sm cursor-pointer"
+                    onClick={(e) => {
+                      if (!dragMovedRef.current.get(asset.id) && !e.shiftKey) {
+                        onPreview?.(asset);
+                      }
+                    }}
+                  >
                     {asset.assetType === "video" ? (
                       <video
                         src={asset.url}

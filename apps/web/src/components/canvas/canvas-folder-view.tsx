@@ -11,6 +11,7 @@ import { LayoutPanelLeftIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CanvasAssetType } from "./asset-card";
 import type { CanvasControls } from "../user-menu";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 
 const STORAGE_KEY_COLUMNS = "vayo-canvas-columns";
 const STORAGE_KEY_VIEW = "vayo-canvas-view";
@@ -68,6 +69,9 @@ export function CanvasFolderView({
   canvasControls: CanvasControls;
 }) {
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const [previewAsset, setPreviewAsset] = useState<CanvasAssetType | null>(
+    null
+  );
   const { viewMode, columns } = canvasControls;
 
   const assets = useInfiniteQuery({
@@ -243,6 +247,7 @@ export function CanvasFolderView({
             columns={columns}
             onDelete={(id) => deleteAsset.mutate(id)}
             onReorder={handleReorder}
+            onPreview={setPreviewAsset}
           />
           <div ref={lastElementRef} className="h-1" />
         </div>
@@ -253,10 +258,37 @@ export function CanvasFolderView({
           assets={allAssets}
           onDelete={(id) => deleteAsset.mutate(id)}
           onUpdateZIndex={(updates) => updateZIndex.mutate(updates)}
+          onPreview={setPreviewAsset}
         />
       )}
 
       <AssetUploadZone folderId={folderId} floating />
+
+      <Dialog
+        open={!!previewAsset}
+        onOpenChange={(open) => !open && setPreviewAsset(null)}
+      >
+        <DialogContent
+          showCloseButton={false}
+          className="bg-transparent border-none !border-0 shadow-none max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
+        >
+          <DialogTitle className="sr-only">Asset preview</DialogTitle>
+          {previewAsset?.assetType === "video" ? (
+            <video
+              src={previewAsset.url}
+              controls
+              autoPlay
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
+            />
+          ) : previewAsset ? (
+            <img
+              src={previewAsset.url}
+              alt={previewAsset.originalFilename || "Asset"}
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

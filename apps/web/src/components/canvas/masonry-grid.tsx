@@ -8,12 +8,14 @@ export function MasonryGrid({
   columns,
   onDelete,
   onReorder,
+  onPreview,
   isPublic = false,
 }: {
   assets: CanvasAssetType[];
   columns: number;
   onDelete?: (id: string) => void;
   onReorder?: (reorderedAssets: CanvasAssetType[]) => void;
+  onPreview?: (asset: CanvasAssetType) => void;
   isPublic?: boolean;
 }) {
   // Local copy of assets for stable reordering without flicker
@@ -108,15 +110,20 @@ export function MasonryGrid({
           onDragLeave={canDrag ? handleDragLeave : undefined}
           onDrop={canDrag ? (e) => handleDrop(e, asset.id) : undefined}
           onDragEnd={canDrag ? handleDragEnd : undefined}
-          className={`transition-all duration-150 ${
-            draggedId === asset.id ? "opacity-30 scale-95" : ""
+          className={`transition-all duration-150 active:scale-98 ${
+            draggedId === asset.id ? "opacity-30 scale-98" : ""
           } ${
             dropTargetId === asset.id
               ? "ring-2 ring-primary/50 ring-offset-2 ring-offset-background rounded-md"
               : ""
           }`}
         >
-          <AssetCard asset={asset} onDelete={onDelete} isPublic={isPublic} />
+          <AssetCard
+            asset={asset}
+            onDelete={onDelete}
+            onPreview={onPreview}
+            isPublic={isPublic}
+          />
         </div>
       ))}
     </div>

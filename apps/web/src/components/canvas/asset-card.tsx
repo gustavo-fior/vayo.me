@@ -35,10 +35,12 @@ export type CanvasAssetType = {
 export function AssetCard({
   asset,
   onDelete,
+  onPreview,
   isPublic = false,
 }: {
   asset: CanvasAssetType;
   onDelete?: (id: string) => void;
+  onPreview?: (asset: CanvasAssetType) => void;
   isPublic?: boolean;
 }) {
   const content =
@@ -65,7 +67,10 @@ export function AssetCard({
 
   if (isPublic) {
     return (
-      <div className="break-inside-avoid mb-3 overflow-hidden rounded-md group cursor-pointer">
+      <div
+        className="break-inside-avoid mb-3 overflow-hidden rounded-md group cursor-pointer"
+        onClick={() => onPreview?.(asset)}
+      >
         {content}
       </div>
     );
@@ -74,7 +79,10 @@ export function AssetCard({
   return (
     <ContextMenu>
       <ContextMenuTrigger>
-        <div className="break-inside-avoid mb-3 overflow-hidden rounded-md group cursor-pointer hover:opacity-90 transition-opacity">
+        <div
+          className="break-inside-avoid mb-3 overflow-hidden rounded-md group cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => onPreview?.(asset)}
+        >
           {content}
         </div>
       </ContextMenuTrigger>

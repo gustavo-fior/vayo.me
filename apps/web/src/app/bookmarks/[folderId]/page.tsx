@@ -19,12 +19,16 @@ import { useTheme } from "next-themes";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CanvasAssetType } from "@/components/canvas/asset-card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 export default function Bookmarks() {
   const { folderId } = useParams();
   const { theme, setTheme } = useTheme();
   const [notShared, setNotShared] = useState(false);
   const [showOgImage, setShowOgImage] = useState(false);
+  const [previewAsset, setPreviewAsset] = useState<CanvasAssetType | null>(
+    null
+  );
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const folder = useQuery({
@@ -136,6 +140,31 @@ export default function Bookmarks() {
 
   return (
     <>
+      <Dialog
+        open={!!previewAsset}
+        onOpenChange={(open) => !open && setPreviewAsset(null)}
+      >
+        <DialogContent
+          showCloseButton={false}
+          className="bg-transparent !border-0 shadow-none max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
+        >
+          <DialogTitle className="sr-only">Asset preview</DialogTitle>
+          {previewAsset?.assetType === "video" ? (
+            <video
+              src={previewAsset.url}
+              controls
+              autoPlay
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
+            />
+          ) : previewAsset ? (
+            <img
+              src={previewAsset.url}
+              alt={previewAsset.originalFilename || "Asset"}
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
       <div
         className={`container mx-auto ${
           isCanvasFolder ? "max-w-5xl" : "max-w-2xl"
@@ -206,7 +235,12 @@ export default function Bookmarks() {
               {allAssets.length > 0 && (
                 <>
                   <div className="mt-4 md:pb-48 pb-32">
-                    <MasonryGrid assets={allAssets} columns={3} isPublic />
+                    <MasonryGrid
+                      assets={allAssets}
+                      columns={3}
+                      isPublic
+                      onPreview={setPreviewAsset}
+                    />
                   </div>
                   <div ref={lastAssetElementRef} className="h-1" />
                 </>
