@@ -138,6 +138,24 @@ export default function Bookmarks() {
           : a.updatedAt.toISOString(),
     })) ?? [];
 
+  // Arrow key navigation in lightbox
+  useEffect(() => {
+    if (!previewAsset) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const idx = allAssets.findIndex((a) => a.id === previewAsset.id);
+      if (idx === -1) return;
+      const next =
+        e.key === "ArrowRight"
+          ? allAssets[(idx + 1) % allAssets.length]
+          : allAssets[(idx - 1 + allAssets.length) % allAssets.length];
+      setPreviewAsset(next);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewAsset, allAssets]);
+
   return (
     <>
       <Dialog

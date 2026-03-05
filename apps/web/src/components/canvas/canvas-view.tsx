@@ -282,12 +282,43 @@ export function CanvasView({
         const sy = marqueeStartRef.current.y;
         const cx = e.clientX;
         const cy = e.clientY;
-        setMarqueeRect({
+        const rect = {
           x: Math.min(sx, cx),
           y: Math.min(sy, cy),
           width: Math.abs(cx - sx),
           height: Math.abs(cy - sy),
-        });
+        };
+        setMarqueeRect(rect);
+
+        // Live highlight: compute selection during drag
+        if (rect.width > 3 || rect.height > 3) {
+          const containerRect = el.getBoundingClientRect();
+          const toCanvas = (screenX: number, screenY: number) => ({
+            x: (screenX - containerRect.left - translate.x) / scale,
+            y: (screenY - containerRect.top - translate.y) / scale,
+          });
+          const topLeft = toCanvas(rect.x, rect.y);
+          const bottomRight = toCanvas(rect.x + rect.width, rect.y + rect.height);
+          const marqueeCanvas = {
+            x: topLeft.x,
+            y: topLeft.y,
+            width: bottomRight.x - topLeft.x,
+            height: bottomRight.y - topLeft.y,
+          };
+          const newSelected = new Set<string>();
+          assets.forEach((asset, index) => {
+            const pos = getAssetPosition(asset, index);
+            if (
+              pos.x < marqueeCanvas.x + marqueeCanvas.width &&
+              pos.x + pos.width > marqueeCanvas.x &&
+              pos.y < marqueeCanvas.y + marqueeCanvas.height &&
+              pos.y + pos.height > marqueeCanvas.y
+            ) {
+              newSelected.add(asset.id);
+            }
+          });
+          setSelectedIds(newSelected);
+        }
         return;
       }
       if (!isPanningRef.current) return;
@@ -303,59 +334,7 @@ export function CanvasView({
       if (isMarqueeRef.current) {
         isMarqueeRef.current = false;
         el.style.cursor = "grab";
-
-        // Intersection test
-        const containerRect = el.getBoundingClientRect();
-        const mRect = marqueeStartRef.current;
-        // We need the final marquee in screen space — read from state via DOM
-        // Actually we have the start and can compute from the last mouse position
-        // But easier: read the marquee rect state. Since we're in a handler that
-        // just set it, let's use a direct approach with the ref values.
-        setMarqueeRect((currentMarquee) => {
-          if (
-            !currentMarquee ||
-            (currentMarquee.width < 3 && currentMarquee.height < 3)
-          ) {
-            return null;
-          }
-
-          // Convert screen-space marquee to canvas-space
-          const toCanvas = (screenX: number, screenY: number) => ({
-            x: (screenX - containerRect.left - translate.x) / scale,
-            y: (screenY - containerRect.top - translate.y) / scale,
-          });
-
-          const topLeft = toCanvas(currentMarquee.x, currentMarquee.y);
-          const bottomRight = toCanvas(
-            currentMarquee.x + currentMarquee.width,
-            currentMarquee.y + currentMarquee.height
-          );
-
-          const marqueeCanvas = {
-            x: topLeft.x,
-            y: topLeft.y,
-            width: bottomRight.x - topLeft.x,
-            height: bottomRight.y - topLeft.y,
-          };
-
-          const newSelected = new Set<string>();
-          assets.forEach((asset, index) => {
-            const pos = getAssetPosition(asset, index);
-            // AABB overlap test
-            if (
-              pos.x < marqueeCanvas.x + marqueeCanvas.width &&
-              pos.x + pos.width > marqueeCanvas.x &&
-              pos.y < marqueeCanvas.y + marqueeCanvas.height &&
-              pos.y + pos.height > marqueeCanvas.y
-            ) {
-              newSelected.add(asset.id);
-            }
-          });
-
-          setSelectedIds(newSelected);
-          return null;
-        });
-
+        setMarqueeRect(null);
         return;
       }
 
