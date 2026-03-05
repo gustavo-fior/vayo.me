@@ -205,7 +205,7 @@ export default function Bookmarks() {
 
               {allAssets.length > 0 && (
                 <>
-                  <div className="mt-4">
+                  <div className="mt-4 md:pb-48 pb-32">
                     <MasonryGrid assets={allAssets} columns={3} isPublic />
                   </div>
                   <div ref={lastAssetElementRef} className="h-1" />

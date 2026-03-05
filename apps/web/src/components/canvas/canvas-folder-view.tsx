@@ -50,7 +50,14 @@ export function useCanvasControls(): CanvasControls {
     localStorage.setItem(STORAGE_KEY_FULL_WIDTH, fullWidth.toString());
   }, [fullWidth]);
 
-  return { viewMode, setViewMode, columns, setColumns, fullWidth, setFullWidth };
+  return {
+    viewMode,
+    setViewMode,
+    columns,
+    setColumns,
+    fullWidth,
+    setFullWidth,
+  };
 }
 
 export function CanvasFolderView({
@@ -230,7 +237,7 @@ export function CanvasFolderView({
       )}
 
       {viewMode === "masonry" && allAssets.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4 md:pb-48 pb-32">
           <MasonryGrid
             assets={allAssets}
             columns={columns}

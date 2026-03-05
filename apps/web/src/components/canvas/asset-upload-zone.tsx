@@ -250,12 +250,83 @@ export function AssetUploadZone({
     const isVideo = videoExts.some((ext) =>
       url.toLowerCase().split("?")[0].endsWith(ext)
     );
+    const assetType = isVideo ? ("video" as const) : ("image" as const);
+    const tempId = crypto.randomUUID();
+    const now = new Date().toISOString();
 
-    createAsset.mutate({
-      folderId,
-      url,
-      assetType: isVideo ? "video" : "image",
-    });
+    // Optimistic insert
+    queryClient.setQueryData(
+      ["canvasAssets", "getAssetsByFolderId", folderId],
+      (old: any) => {
+        const tempAsset = {
+          id: tempId,
+          _temp: true,
+          url,
+          assetType,
+          mimeType: null,
+          fileSize: null,
+          width: null,
+          height: null,
+          originalFilename: null,
+          canvasX: null,
+          canvasY: null,
+          canvasWidth: null,
+          canvasHeight: null,
+          sortOrder: -1,
+          canvasZIndex: 0,
+          folderId,
+          createdAt: now,
+          updatedAt: now,
+        };
+        if (!old) {
+          return { pages: [[tempAsset]], pageParams: [1] };
+        }
+        return {
+          ...old,
+          pages: old.pages.map((page: any[], i: number) =>
+            i === 0 ? [tempAsset, ...page] : page
+          ),
+        };
+      }
+    );
+
+    createAsset.mutate(
+      { folderId, url, assetType },
+      {
+        onSuccess: (newAsset) => {
+          queryClient.setQueryData(
+            ["canvasAssets", "getAssetsByFolderId", folderId],
+            (old: any) => {
+              if (!old) return old;
+              return {
+                ...old,
+                pages: old.pages.map((page: any[]) =>
+                  page.map((a: any) => {
+                    if (a.id !== tempId) return a;
+                    const { _temp, ...rest } = a;
+                    return { ...rest, ...newAsset, id: newAsset.id };
+                  })
+                ),
+              };
+            }
+          );
+        },
+        onError: () => {
+          queryClient.setQueryData(
+            ["canvasAssets", "getAssetsByFolderId", folderId],
+            (old: any) => {
+              if (!old) return old;
+              return {
+                ...old,
+                pages: old.pages.map((page: any[]) =>
+                  page.filter((a: any) => a.id !== tempId)
+                ),
+              };
+            }
+          );
+        },
+      }
+    );
 
     setUrlInput("");
   }, [urlInput, folderId, createAsset]);
