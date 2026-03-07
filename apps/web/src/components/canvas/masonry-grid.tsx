@@ -91,39 +91,46 @@ export function MasonryGrid({
 
   const canDrag = !isPublic && !!onReorder;
 
+  // Distribute assets into columns in row order (round-robin)
+  const columnArrays: CanvasAssetType[][] = Array.from(
+    { length: columns },
+    () => []
+  );
+  localAssets.forEach((asset, index) => {
+    columnArrays[index % columns].push(asset);
+  });
+
   return (
-    <div
-      className="w-full"
-      style={{
-        columnCount: columns,
-        columnGap: "0.75rem",
-      }}
-    >
-      {localAssets.map((asset) => (
-        <div
-          key={asset.id}
-          draggable={canDrag}
-          onDragStart={
-            canDrag ? (e) => handleDragStart(e, asset.id) : undefined
-          }
-          onDragOver={canDrag ? (e) => handleDragOver(e, asset.id) : undefined}
-          onDragLeave={canDrag ? handleDragLeave : undefined}
-          onDrop={canDrag ? (e) => handleDrop(e, asset.id) : undefined}
-          onDragEnd={canDrag ? handleDragEnd : undefined}
-          className={`transition-all duration-150 active:scale-98 ${
-            draggedId === asset.id ? "opacity-30 scale-98" : ""
-          } ${
-            dropTargetId === asset.id
-              ? "ring-2 ring-primary/50 ring-offset-2 ring-offset-background rounded-md"
-              : ""
-          }`}
-        >
-          <AssetCard
-            asset={asset}
-            onDelete={onDelete}
-            onPreview={onPreview}
-            isPublic={isPublic}
-          />
+    <div className="grid w-full gap-3" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+      {columnArrays.map((colAssets, colIndex) => (
+        <div key={colIndex} className="flex flex-col gap-3">
+          {colAssets.map((asset) => (
+            <div
+              key={asset.id}
+              draggable={canDrag}
+              onDragStart={
+                canDrag ? (e) => handleDragStart(e, asset.id) : undefined
+              }
+              onDragOver={canDrag ? (e) => handleDragOver(e, asset.id) : undefined}
+              onDragLeave={canDrag ? handleDragLeave : undefined}
+              onDrop={canDrag ? (e) => handleDrop(e, asset.id) : undefined}
+              onDragEnd={canDrag ? handleDragEnd : undefined}
+              className={`transition-all duration-150 active:scale-98 ${
+                draggedId === asset.id ? "opacity-30 scale-98" : ""
+              } ${
+                dropTargetId === asset.id
+                  ? "ring-2 ring-primary/50 ring-offset-2 ring-offset-background rounded-md"
+                  : ""
+              }`}
+            >
+              <AssetCard
+                asset={asset}
+                onDelete={onDelete}
+                onPreview={onPreview}
+                isPublic={isPublic}
+              />
+            </div>
+          ))}
         </div>
       ))}
     </div>
