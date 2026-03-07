@@ -13,6 +13,7 @@ import {
   CircleCheckIcon,
   CopyIcon,
   ExternalLink,
+  FolderOpenIcon,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,8 +22,12 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "../ui/context-menu";
+import type { Folder } from "@/app/bookmarks/page";
 
 const MIN_SIZE = 50;
 const DEFAULT_ASSET_WIDTH = 300;
@@ -74,17 +79,26 @@ function useNaturalDimensions(assets: CanvasAssetType[]) {
 
 export function CanvasView({
   assets,
+  folderId,
+  folders = [],
   onDelete,
+  onMove,
   onUpdateZIndex,
   onPreview,
 }: {
   assets: CanvasAssetType[];
+  folderId?: string;
+  folders?: Folder[];
   onDelete?: (id: string) => void;
+  onMove?: (assetId: string, folderId: string) => void;
   onUpdateZIndex?: (
     updates: Array<{ id: string; canvasZIndex: number }>
   ) => void;
   onPreview?: (asset: CanvasAssetType) => void;
 }) {
+  const canvasFolders = folders.filter(
+    (f) => f.type === "canvas" && f.id !== folderId
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasLayerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -738,6 +752,35 @@ export function CanvasView({
                     <CopyIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
                     Copy URL
                   </ContextMenuItem>
+                  {onMove && canvasFolders.length > 0 && (
+                    <>
+                      <ContextMenuSeparator />
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger
+                          inset
+                          className="justify-start cursor-pointer"
+                        >
+                          <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
+                          Move
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-44">
+                          {canvasFolders.map((folder, index) => (
+                            <div key={folder.id}>
+                              <ContextMenuItem
+                                onClick={() => onMove(asset.id, folder.id)}
+                              >
+                                {folder.icon && <span>{folder.icon}</span>}
+                                {folder.name}
+                              </ContextMenuItem>
+                              {index !== canvasFolders.length - 1 && (
+                                <ContextMenuSeparator />
+                              )}
+                            </div>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    </>
+                  )}
                   {onDelete && (
                     <>
                       <ContextMenuSeparator />

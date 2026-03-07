@@ -50,7 +50,7 @@ export const Bookmark = ({
   const [isFaviconUnavailable, setIsFaviconUnavailable] = useState(false);
 
   const filteredFolders = folders.filter(
-    (folder) => folder.id !== bookmark.folderId
+    (folder) => folder.id !== bookmark.folderId && folder.type === "bookmarks"
   );
 
   const deleteBookmark = useMutation(

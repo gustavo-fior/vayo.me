@@ -190,6 +190,47 @@ export const canvasAssetsRouter = router({
       await Promise.all(updates);
     }),
 
+  moveAssetToFolder: protectedProcedure
+    .input(z.object({ assetId: z.string(), folderId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const targetFolder = await db.query.folder.findFirst({
+        where: and(
+          eq(folder.id, input.folderId),
+          eq(folder.userId, ctx.session.user.id),
+          eq(folder.type, "canvas")
+        ),
+      });
+
+      if (!targetFolder) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Canvas folder not found",
+        });
+      }
+
+      const asset = await db.query.canvasAsset.findFirst({
+        where: eq(canvasAsset.id, input.assetId),
+      });
+
+      if (!asset) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Asset not found",
+        });
+      }
+
+      await db
+        .update(canvasAsset)
+        .set({ folderId: input.folderId, updatedAt: new Date() })
+        .where(eq(canvasAsset.id, input.assetId));
+
+      // Update both folders' updatedAt
+      await Promise.all([
+        db.update(folder).set({ updatedAt: new Date() }).where(eq(folder.id, asset.folderId)),
+        db.update(folder).set({ updatedAt: new Date() }).where(eq(folder.id, input.folderId)),
+      ]);
+    }),
+
   deleteAsset: protectedProcedure
     .input(z.string())
     .mutation(async ({ input }) => {

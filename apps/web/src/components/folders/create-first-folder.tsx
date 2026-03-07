@@ -48,14 +48,14 @@ export const CreateFirstFolder = ({
   );
 
   return (
-    <div className="flex flex-col min-w-72">
+    <div className="flex flex-col min-w-96">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2, ease: "easeInOut" }}
       >
         <FolderIcon
-          className={`size-5 text-muted-foreground fill-muted-foreground mb-2`}
+          className={`size-5 text-neutral-400 dark:text-neutral-600 fill-neutral-400 dark:fill-neutral-600 mb-3`}
         />
       </motion.div>
       <motion.div
@@ -63,15 +63,15 @@ export const CreateFirstFolder = ({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2, ease: "easeInOut", delay: 0.2 }}
       >
-        <Label className={`font-medium text-lg`}>First Folder</Label>
+        <Label className={`font-medium text-base mb-0.5`}>First Folder</Label>
       </motion.div>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2, ease: "easeInOut", delay: 0.4 }}
       >
-        <p className="text-muted-foreground/50 text-sm">
-          Create your first folder to get started
+        <p className="text-muted-foreground/50 text-sm font-normal">
+          Create your first folder to get started.
         </p>
       </motion.div>
       <motion.div
@@ -84,7 +84,7 @@ export const CreateFirstFolder = ({
             type="button"
             variant="outline"
             size="sm"
-            className={`flex-1 active:scale-100 h-fit py-5 border-input dark:border-input/50 justify-start focus-visible:ring-0 items-start p-4 w-full ${
+            className={`flex-1 active:scale-100 h-fit py-5 border-input/50 dark:border-input/50 justify-start focus-visible:ring-0 items-start p-4 w-full ${
               folderType === "bookmarks"
                 ? "bg-primary/5 dark:bg-primary/5 transition-all duration-[150]"
                 : ""
@@ -93,9 +93,9 @@ export const CreateFirstFolder = ({
           >
             <div className="flex flex-col gap-2.5 text-left justify-start items-start w-fit">
               <BookmarkIcon className="size-4 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500 dark:text-neutral-400" />
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-0.5">
                 <p className="text-xs font-semibold">Bookmarks</p>
-                <p className="text-xs text-muted-foreground/50">
+                <p className="text-xs text-muted-foreground/50 font-normal">
                   Organize your links.
                 </p>
               </div>
@@ -105,7 +105,7 @@ export const CreateFirstFolder = ({
             type="button"
             variant="outline"
             size="sm"
-            className={`flex-1 gap-1.5 active:scale-100 h-fit py-5 border-input dark:border-input/50 justify-start focus-visible:ring-0 items-start p-4 w-full ${
+            className={`flex-1 gap-1.5 active:scale-100 h-fit py-5 border-input/50 dark:border-input/50 justify-start focus-visible:ring-0 items-start p-4 w-full ${
               folderType === "canvas"
                 ? "bg-primary/5 dark:bg-primary/5 transition-all duration-[150]"
                 : ""
@@ -114,9 +114,9 @@ export const CreateFirstFolder = ({
           >
             <div className="flex flex-col gap-2.5 text-left justify-start items-start w-full max-w-fit">
               <LayoutPanelLeftIcon className="size-4 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500 dark:text-neutral-400" />
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-0.5">
                 <p className="text-xs font-semibold">Canvas</p>
-                <p className="text-xs text-muted-foreground/50">
+                <p className="text-xs text-muted-foreground/50 font-normal">
                   Organize your images/videos.
                 </p>
               </div>

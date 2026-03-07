@@ -89,7 +89,7 @@ export const SelectFolder = ({
         side="bottom"
         sideOffset={4}
         alignOffset={8}
-        className="min-w-52"
+        className="min-w-56"
       >
         {folders?.map((folder, index) => (
           <SelectItem
@@ -100,26 +100,25 @@ export const SelectFolder = ({
             <div className="flex items-center gap-2.5">
               {folder.icon && <span className="text-sm">{folder.icon}</span>}
               <span className="text-sm">{folder.name}</span>
-
-              <span className="text-xs text-muted-foreground/50">
-                {folder.totalItems}
-              </span>
             </div>
 
             <div
               className={`absolute ${
                 selectedFolder?.id !== folder.id
                   ? "right-1.5"
-                  : "right-[1.82rem]"
-              } flex items-center gap-1.5`}
+                  : "right-[1.9rem]"
+              } flex items-center gap-2`}
             >
+              <span className="text-[11px] text-muted-foreground/50 tabular-nums">
+                {folder.totalItems}
+              </span>
               {folder.type === "canvas" ? (
                 <LayoutPanelLeftIcon className="size-2.5 stroke-[1.5] text-muted-foreground/50 fill-current/10 dark:fill-current/20" />
               ) : (
                 <BookmarkIcon className="size-2.5 stroke-[1.5] text-muted-foreground/50 fill-current/10 dark:fill-current/20" />
               )}
               {selectedFolder?.id !== folder.id && (
-                <span className="flex text-xs items-center justify-center bg-muted/50 rounded-[3px] p-[0.5px] px-1 border border-border/30 group-hover:bg-transparent group-hover:border-transparent tabular-nums">
+                <span className="flex text-[10px] items-center justify-center bg-muted/50 rounded-[3px] py-[1px] px-1 border border-border/30 group-hover:bg-transparent group-hover:border-transparent tabular-nums font-mono">
                   {index + 1}
                 </span>
               )}

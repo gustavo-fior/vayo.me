@@ -98,9 +98,9 @@ export const CreateFolderDialog = ({
           >
             <div className="flex flex-col gap-2.5 text-left justify-start items-start w-fit">
               <BookmarkIcon className="size-4 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500 dark:text-neutral-400" />
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-0.5">
                 <p className="text-xs font-semibold">Bookmarks</p>
-                <p className="text-xs text-muted-foreground/50">
+                <p className="text-xs text-muted-foreground/50 font-normal">
                   Organize your links.
                 </p>
               </div>
@@ -117,9 +117,9 @@ export const CreateFolderDialog = ({
           >
             <div className="flex flex-col gap-2.5 text-left justify-start items-start w-full max-w-fit">
               <LayoutPanelLeftIcon className="size-4 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500 dark:text-neutral-400" />
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-0.5">
                 <p className="text-xs font-semibold">Canvas</p>
-                <p className="text-xs text-muted-foreground/50">
+                <p className="text-xs text-muted-foreground/50 font-normal">
                   Organize your images/videos.
                 </p>
               </div>

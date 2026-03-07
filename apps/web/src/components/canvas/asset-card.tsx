@@ -1,15 +1,19 @@
 "use client";
 
-import { CircleCheckIcon, CopyIcon, ExternalLink, Trash2 } from "lucide-react";
+import { CircleCheckIcon, CopyIcon, ExternalLink, FolderOpenIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "../ui/context-menu";
 import Image from "next/image";
+import type { Folder } from "@/app/bookmarks/page";
 
 export type CanvasAssetType = {
   id: string;
@@ -34,15 +38,28 @@ export type CanvasAssetType = {
 
 export function AssetCard({
   asset,
+  rounded = true,
+  folderId,
+  folders = [],
   onDelete,
+  onMove,
   onPreview,
   isPublic = false,
 }: {
   asset: CanvasAssetType;
+  rounded?: boolean;
+  folderId?: string;
+  folders?: Folder[];
   onDelete?: (id: string) => void;
+  onMove?: (assetId: string, folderId: string) => void;
   onPreview?: (asset: CanvasAssetType) => void;
   isPublic?: boolean;
 }) {
+  const canvasFolders = folders.filter(
+    (f) => f.type === "canvas" && f.id !== folderId
+  );
+  const radiusClass = rounded ? "rounded-md" : "rounded-none";
+
   const content =
     asset.assetType === "video" ? (
       <video
@@ -51,7 +68,7 @@ export function AssetCard({
         loop
         muted
         playsInline
-        className="w-full h-full object-cover rounded-md"
+        className={`w-full h-full object-cover ${radiusClass}`}
       />
     ) : (
       <Image
@@ -61,14 +78,14 @@ export function AssetCard({
         height={asset.height ?? 1000}
         loading="eager"
         priority
-        className="w-full h-full object-cover rounded-md"
+        className={`w-full h-full object-cover ${radiusClass}`}
       />
     );
 
   if (isPublic) {
     return (
       <div
-        className="break-inside-avoid mb-3 overflow-hidden rounded-md group cursor-pointer"
+        className={`break-inside-avoid mb-3 overflow-hidden ${radiusClass} group cursor-pointer`}
         onClick={() => onPreview?.(asset)}
       >
         {content}
@@ -80,7 +97,7 @@ export function AssetCard({
     <ContextMenu>
       <ContextMenuTrigger>
         <div
-          className="break-inside-avoid mb-3 overflow-hidden rounded-md group cursor-pointer hover:opacity-90 transition-opacity"
+          className={`break-inside-avoid mb-3 overflow-hidden ${radiusClass} group cursor-pointer hover:opacity-90 transition-opacity`}
           onClick={() => onPreview?.(asset)}
         >
           {content}
@@ -115,6 +132,35 @@ export function AssetCard({
           <CopyIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
           Copy URL
         </ContextMenuItem>
+        {onMove && canvasFolders.length > 0 && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger
+                inset
+                className="justify-start cursor-pointer"
+              >
+                <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
+                Move
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-44">
+                {canvasFolders.map((folder, index) => (
+                  <div key={folder.id}>
+                    <ContextMenuItem
+                      onClick={() => onMove(asset.id, folder.id)}
+                    >
+                      {folder.icon && <span>{folder.icon}</span>}
+                      {folder.name}
+                    </ContextMenuItem>
+                    {index !== canvasFolders.length - 1 && (
+                      <ContextMenuSeparator />
+                    )}
+                  </div>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
         {onDelete && (
           <>
             <ContextMenuSeparator />

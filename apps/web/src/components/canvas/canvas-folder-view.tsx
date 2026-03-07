@@ -11,11 +11,14 @@ import { LayoutPanelLeftIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { CanvasAssetType } from "./asset-card";
 import type { CanvasControls } from "../user-menu";
+import type { Folder } from "@/app/bookmarks/page";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 
 const STORAGE_KEY_COLUMNS = "vayo-canvas-columns";
 const STORAGE_KEY_VIEW = "vayo-canvas-view";
 const STORAGE_KEY_FULL_WIDTH = "vayo-canvas-full-width";
+const STORAGE_KEY_MORE_SPACE = "vayo-canvas-more-space";
+const STORAGE_KEY_ROUNDED = "vayo-canvas-rounded";
 
 function getStoredColumns(): number {
   if (typeof window === "undefined") return 3;
@@ -34,10 +37,23 @@ function getStoredFullWidth(): boolean {
   return localStorage.getItem(STORAGE_KEY_FULL_WIDTH) === "true";
 }
 
+function getStoredMoreSpace(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(STORAGE_KEY_MORE_SPACE) === "true";
+}
+
+function getStoredRounded(): boolean {
+  if (typeof window === "undefined") return true;
+  const stored = localStorage.getItem(STORAGE_KEY_ROUNDED);
+  return stored === null ? true : stored === "true";
+}
+
 export function useCanvasControls(): CanvasControls {
   const [viewMode, setViewMode] = useState<"masonry" | "canvas">(getStoredView);
   const [columns, setColumns] = useState<number>(getStoredColumns);
   const [fullWidth, setFullWidth] = useState<boolean>(getStoredFullWidth);
+  const [moreSpace, setMoreSpace] = useState<boolean>(getStoredMoreSpace);
+  const [rounded, setRounded] = useState<boolean>(getStoredRounded);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_COLUMNS, columns.toString());
@@ -51,6 +67,14 @@ export function useCanvasControls(): CanvasControls {
     localStorage.setItem(STORAGE_KEY_FULL_WIDTH, fullWidth.toString());
   }, [fullWidth]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_MORE_SPACE, moreSpace.toString());
+  }, [moreSpace]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_ROUNDED, rounded.toString());
+  }, [rounded]);
+
   return {
     viewMode,
     setViewMode,
@@ -58,21 +82,27 @@ export function useCanvasControls(): CanvasControls {
     setColumns,
     fullWidth,
     setFullWidth,
+    moreSpace,
+    setMoreSpace,
+    rounded,
+    setRounded,
   };
 }
 
 export function CanvasFolderView({
   folderId,
   canvasControls,
+  folders = [],
 }: {
   folderId: string;
   canvasControls: CanvasControls;
+  folders?: Folder[];
 }) {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const [previewAsset, setPreviewAsset] = useState<CanvasAssetType | null>(
     null
   );
-  const { viewMode, columns } = canvasControls;
+  const { viewMode, columns, moreSpace, rounded } = canvasControls;
 
   const assets = useInfiniteQuery({
     queryKey: ["canvasAssets", "getAssetsByFolderId", folderId],
@@ -88,6 +118,51 @@ export function CanvasFolderView({
     },
     enabled: !!folderId,
   });
+
+  const moveAsset = useMutation(
+    trpc.canvasAssets.moveAssetToFolder.mutationOptions({
+      onMutate: async ({ assetId }) => {
+        await queryClient.cancelQueries({
+          queryKey: ["canvasAssets", "getAssetsByFolderId", folderId],
+        });
+
+        const previous = queryClient.getQueryData([
+          "canvasAssets",
+          "getAssetsByFolderId",
+          folderId,
+        ]);
+
+        queryClient.setQueryData(
+          ["canvasAssets", "getAssetsByFolderId", folderId],
+          (old: any) => {
+            if (!old) return old;
+            return {
+              ...old,
+              pages: old.pages.map((page: any[]) =>
+                page.filter((a: any) => a.id !== assetId)
+              ),
+            };
+          }
+        );
+
+        return { previous };
+      },
+      onError: (_, __, context) => {
+        if (context?.previous) {
+          queryClient.setQueryData(
+            ["canvasAssets", "getAssetsByFolderId", folderId],
+            context.previous
+          );
+        }
+        toast.error("Failed to move asset");
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["canvasAssets", "getAssetsByFolderId"],
+        });
+      },
+    })
+  );
 
   const deleteAsset = useMutation(
     trpc.canvasAssets.deleteAsset.mutationOptions({
@@ -263,7 +338,12 @@ export function CanvasFolderView({
           <MasonryGrid
             assets={allAssets}
             columns={columns}
+            moreSpace={moreSpace}
+            rounded={rounded}
+            folderId={folderId}
+            folders={folders}
             onDelete={(id) => deleteAsset.mutate(id)}
+            onMove={(assetId, targetFolderId) => moveAsset.mutate({ assetId, folderId: targetFolderId })}
             onReorder={handleReorder}
             onPreview={setPreviewAsset}
           />
@@ -274,7 +354,10 @@ export function CanvasFolderView({
       {viewMode === "canvas" && allAssets.length > 0 && (
         <CanvasView
           assets={allAssets}
+          folderId={folderId}
+          folders={folders}
           onDelete={(id) => deleteAsset.mutate(id)}
+          onMove={(assetId, targetFolderId) => moveAsset.mutate({ assetId, folderId: targetFolderId })}
           onUpdateZIndex={(updates) => updateZIndex.mutate(updates)}
           onPreview={setPreviewAsset}
         />

@@ -189,6 +189,12 @@ export default function Bookmarks() {
   useHotkeys("g", () => {
     if (isCanvasFolder) canvasControls.setViewMode("masonry");
   });
+  useHotkeys("r", () => {
+    if (isCanvasFolder) canvasControls.setRounded(!canvasControls.rounded);
+  });
+  useHotkeys("s", () => {
+    if (isCanvasFolder) canvasControls.setMoreSpace(!canvasControls.moreSpace);
+  });
   useHotkeys("shift+f", (event) => {
     event.preventDefault();
     if (inputRef.current) {
@@ -322,6 +328,7 @@ export default function Bookmarks() {
             <CanvasFolderView
               folderId={selectedFolder.id}
               canvasControls={canvasControls}
+              folders={folders.data ?? []}
             />
           ) : (
             <>

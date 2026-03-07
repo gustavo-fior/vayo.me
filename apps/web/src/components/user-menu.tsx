@@ -9,12 +9,14 @@ import { authClient } from "@/lib/auth-client";
 import {
   Calendar,
   Columns3,
+  CircleIcon,
   ExpandIcon,
   Grid2X2,
   LayoutDashboard,
   LayoutPanelLeftIcon,
   LogOut,
   Maximize,
+  MaximizeIcon,
   Moon,
   User,
   VectorSquareIcon,
@@ -36,6 +38,10 @@ export type CanvasControls = {
   setColumns: (n: number) => void;
   fullWidth: boolean;
   setFullWidth: (v: boolean) => void;
+  moreSpace: boolean;
+  setMoreSpace: (v: boolean) => void;
+  rounded: boolean;
+  setRounded: (v: boolean) => void;
 };
 
 export default function UserMenu({
@@ -104,7 +110,44 @@ export default function UserMenu({
             <LogOut className="size-3.5 stroke-[1.5] text-neutral-500" />
           </Button>
         </div>
-        <DropdownMenuSeparator />
+        {!canvasControls && <DropdownMenuSeparator />}
+
+        {canvasControls && (
+          <>
+            <div className="p-2 ">
+              <div className="flex gap-1">
+                <Button
+                  variant={
+                    canvasControls.viewMode === "masonry"
+                      ? "secondary"
+                      : "ghost"
+                  }
+                  size="sm"
+                  className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
+                  onClick={() => canvasControls.setViewMode("masonry")}
+                >
+                  <Grid2X2 className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500" />
+                  <span className="text-xs">Grid</span>
+                  <Shortcut>G</Shortcut>
+                </Button>
+                <Button
+                  variant={
+                    canvasControls.viewMode === "canvas" ? "secondary" : "ghost"
+                  }
+                  size="sm"
+                  className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
+                  onClick={() => canvasControls.setViewMode("canvas")}
+                >
+                  <LayoutDashboard className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500" />
+                  <span className="text-xs">Canvas</span>
+                  <Shortcut>C</Shortcut>
+                </Button>
+              </div>
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
+
         <div
           className="flex items-center justify-between gap-2 p-2 cursor-pointer"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -149,6 +192,44 @@ export default function UserMenu({
                   />
                 </div>
                 <DropdownMenuSeparator className="hidden md:block" />
+                <div
+                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+                  onClick={() =>
+                    canvasControls.setMoreSpace(!canvasControls.moreSpace)
+                  }
+                >
+                  <div className="flex gap-2 items-center">
+                    <MaximizeIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                    <Label className="cursor-pointer select-none font-normal">
+                      More Space
+                    </Label>
+                    <Shortcut>S</Shortcut>
+                  </div>
+                  <Switch
+                    checked={canvasControls.moreSpace}
+                    onCheckedChange={canvasControls.setMoreSpace}
+                  />
+                </div>
+                <DropdownMenuSeparator className="hidden md:block" />
+                <div
+                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+                  onClick={() =>
+                    canvasControls.setRounded(!canvasControls.rounded)
+                  }
+                >
+                  <div className="flex gap-2 items-center">
+                    <CircleIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                    <Label className="cursor-pointer select-none font-normal">
+                      Rounded
+                    </Label>
+                    <Shortcut>R</Shortcut>
+                  </div>
+                  <Switch
+                    checked={canvasControls.rounded}
+                    onCheckedChange={canvasControls.setRounded}
+                  />
+                </div>
+                <DropdownMenuSeparator className="hidden md:block" />
                 <div className="flex items-center justify-between gap-2 p-2">
                   <div className="flex gap-2 items-center">
                     <Columns3 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
@@ -172,37 +253,6 @@ export default function UserMenu({
                 </div>
               </>
             )}
-            <DropdownMenuSeparator />
-            <div className="p-0">
-              <div className="flex gap-1">
-                <Button
-                  variant={
-                    canvasControls.viewMode === "masonry"
-                      ? "secondary"
-                      : "ghost"
-                  }
-                  size="sm"
-                  className="flex-1 h-8 gap-1.5 rounded-sm"
-                  onClick={() => canvasControls.setViewMode("masonry")}
-                >
-                  <Grid2X2 className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500" />
-                  <span className="text-xs">Grid</span>
-                  <Shortcut>G</Shortcut>
-                </Button>
-                <Button
-                  variant={
-                    canvasControls.viewMode === "canvas" ? "secondary" : "ghost"
-                  }
-                  size="sm"
-                  className="flex-1 h-8 gap-1.5 rounded-sm"
-                  onClick={() => canvasControls.setViewMode("canvas")}
-                >
-                  <LayoutDashboard className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500" />
-                  <span className="text-xs">Canvas</span>
-                  <Shortcut>C</Shortcut>
-                </Button>
-              </div>
-            </div>
           </>
         )}
 

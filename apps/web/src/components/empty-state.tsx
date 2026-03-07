@@ -20,7 +20,7 @@ export function EmptyState({
       className="flex flex-col items-center justify-center w-full gap-1"
     >
       <Icon
-        className={`size-5 text-muted-foreground fill-muted-foreground ${
+        className={`size-5 text-neutral-400 dark:text-neutral-600 fill-neutral-400 dark:fill-neutral-600 ${
           description ? "mb-2" : ""
         }`}
       />
