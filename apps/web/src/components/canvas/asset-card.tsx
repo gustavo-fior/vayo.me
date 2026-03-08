@@ -142,55 +142,57 @@ export function AssetCard({
           <CopyIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
           Copy URL
         </ContextMenuItem>
-        <ContextMenuSeparator />
 
         {asset.assetType === "image" && (
-          <ContextMenuItem
-            className="flex items-center gap-2"
-            onClick={async () => {
-              try {
-                const res = await fetch(asset.url);
-                const blob = await res.blob();
-                const pngBlob =
-                  blob.type === "image/png"
-                    ? blob
-                    : await new Promise<Blob>((resolve) => {
-                        const img = new window.Image();
-                        img.crossOrigin = "anonymous";
-                        img.onload = () => {
-                          const canvas = document.createElement("canvas");
-                          canvas.width = img.naturalWidth;
-                          canvas.height = img.naturalHeight;
-                          canvas.getContext("2d")!.drawImage(img, 0, 0);
-                          canvas.toBlob((b) => resolve(b!), "image/png");
-                        };
-                        img.src = asset.url;
-                      });
-                await navigator.clipboard.write([
-                  new ClipboardItem({ "image/png": pngBlob }),
-                ]);
-                toast.custom(
-                  () => (
-                    <div className="flex justify-center mx-auto">
-                      <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
-                        <CircleCheckIcon
-                          className="size-3.5 text-green-400 dark:text-green-600"
-                          strokeWidth={2.2}
-                        />
-                        <h1>Image copied to clipboard</h1>
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              className="flex items-center gap-2"
+              onClick={async () => {
+                try {
+                  const res = await fetch(asset.url);
+                  const blob = await res.blob();
+                  const pngBlob =
+                    blob.type === "image/png"
+                      ? blob
+                      : await new Promise<Blob>((resolve) => {
+                          const img = new window.Image();
+                          img.crossOrigin = "anonymous";
+                          img.onload = () => {
+                            const canvas = document.createElement("canvas");
+                            canvas.width = img.naturalWidth;
+                            canvas.height = img.naturalHeight;
+                            canvas.getContext("2d")!.drawImage(img, 0, 0);
+                            canvas.toBlob((b) => resolve(b!), "image/png");
+                          };
+                          img.src = asset.url;
+                        });
+                  await navigator.clipboard.write([
+                    new ClipboardItem({ "image/png": pngBlob }),
+                  ]);
+                  toast.custom(
+                    () => (
+                      <div className="flex justify-center mx-auto">
+                        <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+                          <CircleCheckIcon
+                            className="size-3.5 text-green-400 dark:text-green-600"
+                            strokeWidth={2.2}
+                          />
+                          <h1>Image copied to clipboard</h1>
+                        </div>
                       </div>
-                    </div>
-                  ),
-                  { position: "top-center" }
-                );
-              } catch {
-                toast.error("Failed to copy image");
-              }
-            }}
-          >
-            <ImageIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
-            Copy Image
-          </ContextMenuItem>
+                    ),
+                    { position: "top-center" }
+                  );
+                } catch {
+                  toast.error("Failed to copy image");
+                }
+              }}
+            >
+              <ImageIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+              Copy Image
+            </ContextMenuItem>
+          </>
         )}
         {onMove && canvasFolders.length > 0 && (
           <>

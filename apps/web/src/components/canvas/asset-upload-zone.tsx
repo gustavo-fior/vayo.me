@@ -107,36 +107,52 @@ export function AssetUploadZone({
         }
       );
 
-      // Upload in background
+      // Upload in background via signed URL (bypasses Vercel payload limit)
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("folderId", folderId);
-
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/upload`,
+        // 1. Get signed upload URL from server
+        const urlRes = await fetch(
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/upload-url`,
           {
             method: "POST",
-            body: formData,
+            headers: { "Content-Type": "application/json" },
             credentials: "include",
+            body: JSON.stringify({
+              folderId,
+              fileName: file.name,
+              contentType: file.type,
+            }),
           }
         );
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Upload failed");
+        if (!urlRes.ok) {
+          const err = await urlRes.json();
+          throw new Error(err.error || "Failed to get upload URL");
         }
 
-        const data = await res.json();
+        const { signedUrl, token, publicUrl } = await urlRes.json();
+
+        // 2. Upload file directly to Supabase Storage
+        const uploadRes = await fetch(signedUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type,
+            "x-upsert": "false",
+          },
+          body: file,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Upload to storage failed");
+        }
 
         createAsset.mutate(
           {
             folderId,
-            url: data.url,
+            url: publicUrl,
             assetType,
-            mimeType: data.mimeType,
-            fileSize: data.fileSize,
-            originalFilename: data.originalFilename,
+            mimeType: file.type,
+            fileSize: file.size,
+            originalFilename: file.name,
           },
           {
             onSuccess: (newAsset) => {

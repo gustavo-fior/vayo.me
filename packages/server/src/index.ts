@@ -60,25 +60,22 @@ app.get("/getFolderById", async (c) => {
   return c.json(foundFolder);
 });
 
-app.post("/upload", async (c) => {
+app.post("/upload-url", async (c) => {
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   if (!session) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const body = await c.req.parseBody();
-  const file = body["file"];
-  const folderId = body["folderId"] as string;
+  const { folderId, fileName, contentType } = await c.req.json();
 
-  if (!file || !(file instanceof File)) {
-    return c.json({ error: "File is required" }, 400);
+  if (!folderId || !fileName || !contentType) {
+    return c.json({ error: "folderId, fileName, and contentType are required" }, 400);
   }
 
-  if (!folderId) {
-    return c.json({ error: "folderId is required" }, 400);
+  if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
+    return c.json({ error: "Only image and video files are allowed" }, 400);
   }
 
-  // Validate folder ownership and type
   const foundFolder = await db.query.folder.findFirst({
     where: and(
       eq(folder.id, folderId),
@@ -91,25 +88,16 @@ app.post("/upload", async (c) => {
     return c.json({ error: "Canvas folder not found" }, 404);
   }
 
-  // Validate file type
-  if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-    return c.json({ error: "Only image and video files are allowed" }, 400);
-  }
-
-  const ext = file.name.split(".").pop() || "bin";
+  const ext = fileName.split(".").pop() || "bin";
   const storagePath = `${session.user.id}/${folderId}/${uuidv7()}.${ext}`;
 
-  const arrayBuffer = await file.arrayBuffer();
-  const { error: uploadError } = await getSupabase().storage
+  const { data, error } = await getSupabase().storage
     .from("canvas-assets")
-    .upload(storagePath, arrayBuffer, {
-      contentType: file.type,
-      upsert: false,
-    });
+    .createSignedUploadUrl(storagePath);
 
-  if (uploadError) {
-    console.error("Upload error:", uploadError);
-    return c.json({ error: "Failed to upload file" }, 500);
+  if (error || !data) {
+    console.error("Signed URL error:", error);
+    return c.json({ error: "Failed to create upload URL" }, 500);
   }
 
   const {
@@ -117,11 +105,10 @@ app.post("/upload", async (c) => {
   } = getSupabase().storage.from("canvas-assets").getPublicUrl(storagePath);
 
   return c.json({
-    url: publicUrl,
-    mimeType: file.type,
-    fileSize: file.size,
-    originalFilename: file.name,
+    signedUrl: data.signedUrl,
+    token: data.token,
     storagePath,
+    publicUrl,
   });
 });
 
