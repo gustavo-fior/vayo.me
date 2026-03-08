@@ -144,7 +144,7 @@ const FLOATING_ITEMS: Array<{
     favicon: "https://www.google.com/s2/favicons?domain=figma.com&sz=32",
     title: "Figma",
     description: "The collaborative design tool",
-    style: { top: "12%", right: "-2%", width: 240, rotate: "-1deg" },
+    style: { top: "17%", right: "-1%", width: 240, rotate: "-1deg" },
   },
   // Extra: left image (between mid-left and bottom-left)
   {
@@ -162,7 +162,7 @@ const FLOATING_ITEMS: Array<{
   {
     type: "image",
     url: "https://mnrsfbaegprkqibmsmxg.supabase.co/storage/v1/object/public/canvas-assets/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019cc9e3-306e-741c-bcc5-31a33fa759c2.jpg",
-    style: { bottom: "-8%", left: "56%", width: 150, rotate: "2deg" },
+    style: { bottom: "-2%", left: "56%", width: 150, rotate: "2deg" },
   },
   // Extra: bottom bookmark (right of center)
   {
@@ -171,7 +171,7 @@ const FLOATING_ITEMS: Array<{
     favicon: "https://www.google.com/s2/favicons?domain=arc.net&sz=32",
     title: "Arc",
     description: "The browser built for you",
-    style: { bottom: "6%", right: "14%", width: 230, rotate: "-4deg" },
+    style: { bottom: "6%", right: "13%", width: 230, rotate: "-4deg" },
   },
 ];
 
