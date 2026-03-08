@@ -172,7 +172,7 @@ export default function UserMenu({
           <>
             {canvasControls.viewMode === "masonry" && (
               <>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="hidden md:block" />
                 <div
                   className="items-center justify-between gap-2 p-2 cursor-pointer hidden md:flex"
                   onClick={() =>
@@ -191,7 +191,7 @@ export default function UserMenu({
                     onCheckedChange={canvasControls.setFullWidth}
                   />
                 </div>
-                <DropdownMenuSeparator className="hidden md:block" />
+                <DropdownMenuSeparator />
                 <div
                   className="flex items-center justify-between gap-2 p-2 cursor-pointer"
                   onClick={() =>
@@ -210,7 +210,7 @@ export default function UserMenu({
                     onCheckedChange={canvasControls.setMoreSpace}
                   />
                 </div>
-                <DropdownMenuSeparator className="hidden md:block" />
+                <DropdownMenuSeparator />
                 <div
                   className="flex items-center justify-between gap-2 p-2 cursor-pointer"
                   onClick={() =>
@@ -229,7 +229,7 @@ export default function UserMenu({
                     onCheckedChange={canvasControls.setRounded}
                   />
                 </div>
-                <DropdownMenuSeparator className="hidden md:block" />
+                <DropdownMenuSeparator />
                 <div className="flex items-center justify-between gap-2 p-2">
                   <div className="flex gap-2 items-center">
                     <Columns3 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
