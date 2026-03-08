@@ -10,11 +10,12 @@ export const auth = betterAuth({
   }),
   trustedOrigins: async (request: Request) => {
     const origin = request.headers.get("origin");
-    if (!origin) return [];
-    const allowed = (process.env.CORS_ORIGIN || "").split(",");
-    return origin.startsWith("chrome-extension://") || allowed.includes(origin)
-      ? [origin]
-      : [];
+    const allowed = (process.env.CORS_ORIGIN || "").split(",").filter(Boolean);
+    const origins = [...allowed];
+    if (origin?.startsWith("chrome-extension://")) {
+      origins.push(origin);
+    }
+    return origins;
   },
   socialProviders: {
     google: {
