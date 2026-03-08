@@ -242,10 +242,9 @@ export function AssetUploadZone({
     };
   }, [handleFiles]);
 
-  const handleUrlSubmit = useCallback(() => {
-    if (!urlInput.trim()) return;
-
-    const url = urlInput.trim();
+  const submitUrl = useCallback((rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (!url) return;
     const videoExts = [".mp4", ".webm", ".mov", ".ogg"];
     const isVideo = videoExts.some((ext) =>
       url.toLowerCase().split("?")[0].endsWith(ext)
@@ -329,7 +328,11 @@ export function AssetUploadZone({
     );
 
     setUrlInput("");
-  }, [urlInput, folderId, createAsset]);
+  }, [folderId, createAsset]);
+
+  const handleUrlSubmit = useCallback(() => {
+    submitUrl(urlInput);
+  }, [urlInput, submitUrl]);
 
   return (
     <>
@@ -399,6 +402,13 @@ export function AssetUploadZone({
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleUrlSubmit();
+              }}
+              onPaste={(e) => {
+                const pastedText = e.clipboardData.getData("text");
+                if (pastedText.trim()) {
+                  e.preventDefault();
+                  submitUrl(pastedText);
+                }
               }}
             />
             <Button

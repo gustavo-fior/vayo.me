@@ -126,7 +126,7 @@ export function AssetCard({
                   <h1>URL copied to clipboard</h1>
                 </div>
               </div>
-            ));
+            ), { position: "top-center" });
           }}
         >
           <CopyIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
