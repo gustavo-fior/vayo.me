@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "VAYØ",
+  "version": "2.0.0",
+  "description": "Save images, videos, and bookmarks to your VAYØ folders.",
+  "permissions": ["contextMenus", "activeTab", "storage"],
+  "host_permissions": ["https://vayo.me/*"],
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "src/assets/icon-16.png",
+      "48": "src/assets/icon-48.png",
+      "128": "src/assets/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "src/assets/icon-16.png",
+    "48": "src/assets/icon-48.png",
+    "128": "src/assets/icon-128.png"
+  }
+}

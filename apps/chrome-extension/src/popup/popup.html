@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VAYØ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Loading -->
+  <div id="screen-loading" class="screen">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Auth -->
+  <div id="screen-auth" class="screen hidden">
+    <div class="auth-container">
+      <h2>VAYØ</h2>
+      <p class="text-muted" style="margin-bottom: 0.5rem;">Sign in to save bookmarks and assets.</p>
+      <button id="btn-signin" class="btn-primary">Sign in to VAYØ</button>
+    </div>
+  </div>
+
+  <!-- Bookmark mode -->
+  <div id="screen-bookmark" class="screen hidden">
+    <div class="page-info">
+      <img id="bookmark-favicon" class="favicon" src="" alt="">
+      <div class="page-meta">
+        <div id="bookmark-title" class="page-title"></div>
+        <div id="bookmark-url" class="page-url"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="bookmark-folder">Folder</label>
+      <select id="bookmark-folder"></select>
+    </div>
+    <button id="btn-save-bookmark" class="btn-primary">Save</button>
+  </div>
+
+  <!-- Asset mode -->
+  <div id="screen-asset" class="screen hidden">
+    <div class="asset-preview">
+      <img id="asset-preview-img" class="preview-img hidden" src="" alt="Preview">
+      <video id="asset-preview-video" class="preview-video hidden" src="" muted autoplay loop></video>
+    </div>
+    <div class="field">
+      <label for="asset-folder">Canvas Folder</label>
+      <select id="asset-folder"></select>
+    </div>
+    <button id="btn-save-asset" class="btn-primary">Save</button>
+  </div>
+
+  <!-- Success -->
+  <div id="screen-success" class="screen hidden">
+    <div class="success-container">
+      <svg class="checkmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      <p>Saved!</p>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="screen-error" class="screen hidden">
+    <div class="error-container">
+      <p id="error-message" class="text-destructive"></p>
+      <button id="btn-retry" class="btn-secondary">Retry</button>
+    </div>
+  </div>
+
+  <script src="../../dist/popup/popup.js" type="module"></script>
+</body>
+</html>

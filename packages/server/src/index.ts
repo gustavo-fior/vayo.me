@@ -18,7 +18,11 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: process.env.CORS_ORIGIN || "",
+    origin: (origin) => {
+      const allowed = (process.env.CORS_ORIGIN || "").split(",");
+      if (origin.startsWith("chrome-extension://")) return origin;
+      return allowed.includes(origin) ? origin : allowed[0] || "";
+    },
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,

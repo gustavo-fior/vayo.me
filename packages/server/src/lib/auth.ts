@@ -8,7 +8,14 @@ export const auth = betterAuth({
     provider: "pg",
     schema: schema,
   }),
-  trustedOrigins: [process.env.CORS_ORIGIN || ""],
+  trustedOrigins: async (request: Request) => {
+    const origin = request.headers.get("origin");
+    if (!origin) return [];
+    const allowed = (process.env.CORS_ORIGIN || "").split(",");
+    return origin.startsWith("chrome-extension://") || allowed.includes(origin)
+      ? [origin]
+      : [];
+  },
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
