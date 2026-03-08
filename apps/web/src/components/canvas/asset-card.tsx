@@ -188,7 +188,7 @@ export function AssetCard({
               }
             }}
           >
-            <ImageIcon className="size-3.5 text-neutral-500 stroke-[1.5]" />
+            <ImageIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
             Copy Image
           </ContextMenuItem>
         )}
