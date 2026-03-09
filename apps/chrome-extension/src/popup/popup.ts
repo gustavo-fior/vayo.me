@@ -7,6 +7,7 @@ const screenLoading = document.getElementById("screen-loading")!;
 const screenAuth = document.getElementById("screen-auth")!;
 const screenBookmark = document.getElementById("screen-bookmark")!;
 const screenAsset = document.getElementById("screen-asset")!;
+const screenTweetAssets = document.getElementById("screen-tweet-assets")!;
 const screenSuccess = document.getElementById("screen-success")!;
 const screenError = document.getElementById("screen-error")!;
 
@@ -14,6 +15,7 @@ const screenError = document.getElementById("screen-error")!;
 const btnSignin = document.getElementById("btn-signin") as HTMLButtonElement;
 const btnSaveBookmark = document.getElementById("btn-save-bookmark") as HTMLButtonElement;
 const btnSaveAsset = document.getElementById("btn-save-asset") as HTMLButtonElement;
+const btnSaveTweetAssets = document.getElementById("btn-save-tweet-assets") as HTMLButtonElement;
 const btnRetry = document.getElementById("btn-retry") as HTMLButtonElement;
 const bookmarkFavicon = document.getElementById("bookmark-favicon") as HTMLImageElement;
 const bookmarkTitle = document.getElementById("bookmark-title")!;
@@ -22,13 +24,24 @@ const bookmarkFolderSelect = document.getElementById("bookmark-folder") as HTMLS
 const assetPreviewImg = document.getElementById("asset-preview-img") as HTMLImageElement;
 const assetPreviewVideo = document.getElementById("asset-preview-video") as HTMLVideoElement;
 const assetFolderSelect = document.getElementById("asset-folder") as HTMLSelectElement;
+const tweetAssetsCount = document.getElementById("tweet-assets-count")!;
+const tweetAssetsGrid = document.getElementById("tweet-assets-grid")!;
+const tweetAssetsFolderSelect = document.getElementById("tweet-assets-folder") as HTMLSelectElement;
+const tweetAssetsProgressBar = document.getElementById("tweet-assets-progress-bar")!;
+const tweetAssetsProgressFill = document.getElementById("tweet-assets-progress-fill")!;
+const tweetAssetsProgressText = document.getElementById("tweet-assets-progress-text")!;
 const errorMessage = document.getElementById("error-message")!;
 
 type PendingAsset = { url: string; assetType: "image" | "video" };
+type PendingTweetAssets =
+  | { error: string; assets?: undefined }
+  | { assets: PendingAsset[]; error?: undefined };
+
 let pendingAsset: PendingAsset | null = null;
+let pendingTweetAssetsData: PendingTweetAssets | null = null;
 
 function showScreen(screen: HTMLElement) {
-  [screenLoading, screenAuth, screenBookmark, screenAsset, screenSuccess, screenError].forEach(
+  [screenLoading, screenAuth, screenBookmark, screenAsset, screenTweetAssets, screenSuccess, screenError].forEach(
     (s) => s.classList.add("hidden")
   );
   screen.classList.remove("hidden");
@@ -57,6 +70,35 @@ function populateSelect(select: HTMLSelectElement, folders: Folder[], storageKey
   });
 }
 
+function renderTweetAssetsGrid(assets: PendingAsset[]) {
+  tweetAssetsGrid.innerHTML = "";
+  for (const asset of assets) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "asset-thumb-wrapper";
+
+    if (asset.assetType === "video") {
+      const video = document.createElement("video");
+      video.src = asset.url;
+      video.className = "asset-thumb";
+      video.muted = true;
+      video.preload = "metadata";
+      wrapper.appendChild(video);
+
+      const badge = document.createElement("span");
+      badge.className = "video-badge";
+      badge.textContent = "\u25B6";
+      wrapper.appendChild(badge);
+    } else {
+      const img = document.createElement("img");
+      img.src = asset.url;
+      img.className = "asset-thumb";
+      wrapper.appendChild(img);
+    }
+
+    tweetAssetsGrid.appendChild(wrapper);
+  }
+}
+
 async function init() {
   showScreen(screenLoading);
 
@@ -75,13 +117,32 @@ async function init() {
   }
 
   // Check for pending asset from context menu
-  const storage = await chrome.storage.local.get("pendingAsset");
+  const storage = await chrome.storage.local.get(["pendingAsset", "pendingTweetAssets"]);
   pendingAsset = storage.pendingAsset || null;
+  pendingTweetAssetsData = storage.pendingTweetAssets || null;
 
-  if (pendingAsset) {
+  if (pendingTweetAssetsData) {
+    if (pendingTweetAssetsData.error) {
+      showError(pendingTweetAssetsData.error);
+      chrome.storage.local.remove("pendingTweetAssets");
+      return;
+    }
+
+    const assets = pendingTweetAssetsData.assets!;
     const canvasFolders = folders.filter((f) => f.type === "canvas");
     if (canvasFolders.length === 0) {
-      showError("No canvas folders found. Create one in VAYO first.");
+      showError("No canvas folders found. Create one in VAYØ first.");
+      return;
+    }
+
+    tweetAssetsCount.textContent = `${assets.length} asset${assets.length === 1 ? "" : "s"} found`;
+    populateSelect(tweetAssetsFolderSelect, canvasFolders, "lastCanvasFolder");
+    renderTweetAssetsGrid(assets);
+    showScreen(screenTweetAssets);
+  } else if (pendingAsset) {
+    const canvasFolders = folders.filter((f) => f.type === "canvas");
+    if (canvasFolders.length === 0) {
+      showError("No canvas folders found. Create one in VAYØ first.");
       return;
     }
 
@@ -99,7 +160,7 @@ async function init() {
   } else {
     const bookmarkFolders = folders.filter((f) => f.type === "bookmarks");
     if (bookmarkFolders.length === 0) {
-      showError("No bookmark folders found. Create one in VAYO first.");
+      showError("No bookmark folders found. Create one in VAYØ first.");
       return;
     }
 
@@ -164,6 +225,46 @@ btnSaveAsset.addEventListener("click", async () => {
     btnSaveAsset.disabled = false;
     btnSaveAsset.textContent = "Save";
     showError("Failed to save asset.");
+  }
+});
+
+btnSaveTweetAssets.addEventListener("click", async () => {
+  if (!pendingTweetAssetsData?.assets) return;
+
+  const assets = pendingTweetAssetsData.assets;
+  const folderId = tweetAssetsFolderSelect.value;
+  btnSaveTweetAssets.disabled = true;
+  btnSaveTweetAssets.textContent = "Saving...";
+
+  tweetAssetsProgressBar.classList.remove("hidden");
+  tweetAssetsProgressText.classList.remove("hidden");
+
+  try {
+    for (let i = 0; i < assets.length; i++) {
+      tweetAssetsProgressText.textContent = `Saving ${i + 1} of ${assets.length}...`;
+      tweetAssetsProgressFill.style.width = `${((i + 1) / assets.length) * 100}%`;
+
+      // Save via background script — downloads from Twitter and reuploads to storage
+      const result = await chrome.runtime.sendMessage({
+        type: "SAVE_ASSET",
+        url: assets[i].url,
+        folderId,
+        assetType: assets[i].assetType,
+        reupload: true,
+      });
+      if (!result.success) throw new Error(result.error);
+    }
+
+    chrome.storage.local.remove("pendingTweetAssets");
+    chrome.storage.local.set({ lastCanvasFolder: folderId });
+    showScreen(screenSuccess);
+    setTimeout(() => window.close(), 1500);
+  } catch {
+    btnSaveTweetAssets.disabled = false;
+    btnSaveTweetAssets.textContent = "Save All";
+    tweetAssetsProgressBar.classList.add("hidden");
+    tweetAssetsProgressText.classList.add("hidden");
+    showError("Failed to save assets.");
   }
 });
 
