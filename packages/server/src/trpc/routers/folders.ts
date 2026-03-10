@@ -82,6 +82,23 @@ export const foldersRouter = router({
           and(eq(folder.id, input.id), eq(folder.userId, ctx.session.user.id))
         );
     }),
+  updateFolder: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        icon: z.string().optional(),
+      })
+    )
+    .mutation(({ input, ctx }) => {
+      return db
+        .update(folder)
+        .set({ name: input.name, icon: input.icon ?? null, updatedAt: new Date() })
+        .where(
+          and(eq(folder.id, input.id), eq(folder.userId, ctx.session.user.id))
+        )
+        .returning();
+    }),
   deleteFolder: protectedProcedure
     .input(z.string())
     .mutation(({ input, ctx }) => {

@@ -1,2 +1,2 @@
-export const SERVER_URL = "http://localhost:3001/api";
-export const APP_URL = "http://localhost:3000";
+export const SERVER_URL = "https://vayo.me/api";
+export const APP_URL = "https://vayo.me";

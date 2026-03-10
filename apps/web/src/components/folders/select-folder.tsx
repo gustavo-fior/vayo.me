@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CreateFolderDialog } from "./create-folder-dialog";
+import { EditFolderDialog } from "./edit-folder-dialog";
 import { DeleteFolderButton } from "./delete-folder-button";
 import {
   Select,
@@ -130,6 +131,13 @@ export const SelectFolder = ({
           setSelectedFolder={setSelectedFolder}
           setSelectOpen={setOpen}
         />
+        {selectedFolder && (
+          <EditFolderDialog
+            folder={selectedFolder}
+            setSelectedFolder={setSelectedFolder}
+            setSelectOpen={setOpen}
+          />
+        )}
         {selectedFolder?.id && (
           <DeleteFolderButton
             folderId={selectedFolder.id}
