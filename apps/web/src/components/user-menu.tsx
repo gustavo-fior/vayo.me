@@ -74,10 +74,10 @@ export default function UserMenu({
           {session?.user.image ? (
             <Image
               src={session?.user.image ?? ""}
-              className="rounded-full cursor-pointer select-none"
+              className="rounded-full cursor-pointer select-none size-6"
               alt="User"
-              width={24}
-              height={24}
+              width={1080}
+              height={1080}
             />
           ) : (
             <User className="size-3.5" />
