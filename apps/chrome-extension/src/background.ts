@@ -78,6 +78,14 @@ async function sendToContentScript(tabId: number, message: unknown) {
 }
 
 import { SERVER_URL } from "./lib/config";
+import { getSessionCookie } from "./lib/cookies";
+
+async function authedHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...extra };
+  const cookie = await getSessionCookie();
+  if (cookie) headers["Cookie"] = cookie;
+  return headers;
+}
 
 async function bgCreateAsset(
   url: string,
@@ -86,8 +94,7 @@ async function bgCreateAsset(
 ) {
   const res = await fetch(`${SERVER_URL}/trpc/canvasAssets.createAsset`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    headers: await authedHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ url, folderId, assetType }),
   });
   if (!res.ok) throw new Error(`createAsset failed: ${res.status}`);
@@ -112,8 +119,7 @@ async function downloadAndUploadAsset(
   // Get a signed upload URL from the server
   const uploadUrlRes = await fetch(`${SERVER_URL}/upload-url`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    headers: await authedHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ folderId, fileName, contentType }),
   });
   if (!uploadUrlRes.ok) throw new Error(`Failed to get upload URL: ${uploadUrlRes.status}`);

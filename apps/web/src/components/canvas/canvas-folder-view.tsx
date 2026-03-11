@@ -324,7 +324,7 @@ export function CanvasFolderView({
   return (
     <div className="relative">
       {isEmpty && (
-        <div className="mt-24">
+        <div className={`${viewMode === "masonry" ? "mt-32" : "mt-64"}`}>
           <EmptyState
             title="No assets yet"
             Icon={LayoutPanelLeftIcon}
@@ -343,7 +343,9 @@ export function CanvasFolderView({
             folderId={folderId}
             folders={folders}
             onDelete={(id) => deleteAsset.mutate(id)}
-            onMove={(assetId, targetFolderId) => moveAsset.mutate({ assetId, folderId: targetFolderId })}
+            onMove={(assetId, targetFolderId) =>
+              moveAsset.mutate({ assetId, folderId: targetFolderId })
+            }
             onReorder={handleReorder}
             onPreview={setPreviewAsset}
           />
@@ -357,7 +359,9 @@ export function CanvasFolderView({
           folderId={folderId}
           folders={folders}
           onDelete={(id) => deleteAsset.mutate(id)}
-          onMove={(assetId, targetFolderId) => moveAsset.mutate({ assetId, folderId: targetFolderId })}
+          onMove={(assetId, targetFolderId) =>
+            moveAsset.mutate({ assetId, folderId: targetFolderId })
+          }
           onUpdateZIndex={(updates) => updateZIndex.mutate(updates)}
           onPreview={setPreviewAsset}
         />

@@ -1,12 +1,18 @@
 {
   "manifest_version": 3,
   "name": "VAYØ",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Save images, videos, and bookmarks to your VAYØ folders.",
-  "permissions": ["contextMenus", "activeTab", "storage", "scripting"],
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "storage",
+    "scripting",
+    "cookies"
+  ],
   "host_permissions": [
     "https://vayo.me/*",
-    "http://localhost:3001/*",
+    "https://www.vayo.me/*",
     "https://x.com/*",
     "https://twitter.com/*",
     "https://cdn.syndication.twimg.com/*",
