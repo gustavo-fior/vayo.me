@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { ImageIcon, Loader2, Upload, Link, ArrowUpIcon } from "lucide-react";
+import { ImageIcon, Loader2, Upload, Link, ArrowUpIcon, CircleXIcon } from "lucide-react";
 import { toast } from "sonner";
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
+import { cn } from "@/lib/utils";
 
 export function AssetUploadZone({
   folderId,
@@ -18,6 +19,7 @@ export function AssetUploadZone({
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const [isInvalidUrl, setIsInvalidUrl] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
 
@@ -337,6 +339,25 @@ export function AssetUploadZone({
     );
   }, [folderId, createAsset]);
 
+  const showInvalidUrlError = useCallback((message: string) => {
+    setIsInvalidUrl(true);
+    setTimeout(() => setIsInvalidUrl(false), 2000);
+    toast.custom(
+      () => (
+        <div className="flex justify-center mx-auto">
+          <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+            <CircleXIcon
+              className="size-3.5 text-destructive"
+              strokeWidth={2.2}
+            />
+            <h1>{message}</h1>
+          </div>
+        </div>
+      ),
+      { position: "top-center" }
+    );
+  }, []);
+
   const submitUrl = useCallback((rawUrl: string) => {
     const url = rawUrl.trim();
     if (!url) return;
@@ -344,7 +365,7 @@ export function AssetUploadZone({
     try {
       new URL(url);
     } catch {
-      toast.error("Please enter a valid URL");
+      showInvalidUrlError("Please enter a valid URL");
       return;
     }
 
@@ -367,7 +388,7 @@ export function AssetUploadZone({
           doSubmitUrl(url, "video");
         };
         video.onerror = () => {
-          toast.error("URL does not point to a valid image or video");
+          showInvalidUrlError("URL does not point to a valid image or video");
         };
         video.src = url;
       };
@@ -379,7 +400,7 @@ export function AssetUploadZone({
     const assetType = isVideo ? ("video" as const) : ("image" as const);
     doSubmitUrl(url, assetType);
     setUrlInput("");
-  }, [doSubmitUrl]);
+  }, [doSubmitUrl, showInvalidUrlError]);
 
   const handleUrlSubmit = useCallback(() => {
     submitUrl(urlInput);
@@ -449,7 +470,11 @@ export function AssetUploadZone({
               placeholder="Paste image/video link"
               value={urlInput}
               style={{ boxShadow: "none" }}
-              className="rounded-sm border-transparent h-10 dark:border-transparent focus-visible:border-transparent focus-visible:ring-0 bg-transparent text-primary placeholder:text-primary/50"
+              className={cn(
+                "rounded-sm border-transparent h-10 dark:border-transparent focus-visible:border-transparent focus-visible:ring-0 bg-transparent text-primary placeholder:text-primary/50",
+                isInvalidUrl &&
+                  "animate-shake border-destructive dark:border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20 focus-visible:ring-2"
+              )}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleUrlSubmit();
