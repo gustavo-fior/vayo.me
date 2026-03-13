@@ -358,6 +358,7 @@ export function CanvasFolderView({
           assets={allAssets}
           folderId={folderId}
           folders={folders}
+          rounded={rounded}
           onDelete={(id) => deleteAsset.mutate(id)}
           onMove={(assetId, targetFolderId) =>
             moveAsset.mutate({ assetId, folderId: targetFolderId })

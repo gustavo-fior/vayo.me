@@ -82,6 +82,7 @@ export function CanvasView({
   assets,
   folderId,
   folders = [],
+  rounded = true,
   onDelete,
   onMove,
   onUpdateZIndex,
@@ -90,6 +91,7 @@ export function CanvasView({
   assets: CanvasAssetType[];
   folderId?: string;
   folders?: Folder[];
+  rounded?: boolean;
   onDelete?: (id: string) => void;
   onMove?: (assetId: string, folderId: string) => void;
   onUpdateZIndex?: (
@@ -240,31 +242,61 @@ export function CanvasView({
     [naturalDimensions]
   );
 
-  // Zoom with wheel
+  // Scroll to pan, pinch to zoom (like Excalidraw)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = el.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
 
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.min(3, Math.max(0.1, scale * delta));
-      const scaleChange = newScale / scale;
+      if (e.ctrlKey || e.metaKey) {
+        // Pinch-to-zoom (trackpad pinch sends ctrlKey + wheel)
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-      setTranslate((prev) => ({
-        x: mouseX - scaleChange * (mouseX - prev.x),
-        y: mouseY - scaleChange * (mouseY - prev.y),
-      }));
-      setScale(newScale);
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const newScale = Math.min(3, Math.max(0.1, scale * delta));
+        const scaleChange = newScale / scale;
+
+        setTranslate((prev) => ({
+          x: mouseX - scaleChange * (mouseX - prev.x),
+          y: mouseY - scaleChange * (mouseY - prev.y),
+        }));
+        setScale(newScale);
+      } else {
+        // Normal scroll → pan
+        setTranslate((prev) => ({
+          x: prev.x - e.deltaX,
+          y: prev.y - e.deltaY,
+        }));
+      }
     };
 
     el.addEventListener("wheel", handleWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleWheel);
   }, [scale]);
+
+  // Cmd+/- keyboard zoom
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) return;
+      if (e.key === "=" || e.key === "+") {
+        e.preventDefault();
+        setScale((s) => Math.min(3, s * 1.1));
+      } else if (e.key === "-") {
+        e.preventDefault();
+        setScale((s) => Math.max(0.1, s * 0.9));
+      } else if (e.key === "0") {
+        e.preventDefault();
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Pan + marquee with mouse drag on background
   useEffect(() => {
@@ -420,6 +452,7 @@ export function CanvasView({
                 zIndex: asset.canvasZIndex,
                 outline: isSelected ? "2px solid var(--primary)" : undefined,
                 outlineOffset: isSelected ? "2px" : undefined,
+                borderRadius: rounded ? "0.5rem" : undefined,
               }}
               position={isFollower ? { x: pos.x, y: pos.y } : undefined}
               size={
@@ -588,7 +621,7 @@ export function CanvasView({
               <ContextMenu>
                 <ContextMenuTrigger className="w-full h-full">
                   <div
-                    className="w-full h-full rounded-md overflow-hidden group-hover:border-primary/40 transition-colors shadow-sm cursor-pointer"
+                    className={`w-full h-full ${rounded ? "rounded-md" : ""} overflow-hidden group-hover:border-primary/40 transition-colors shadow-sm cursor-pointer`}
                     onClick={(e) => {
                       if (!dragMovedRef.current.get(asset.id) && !e.shiftKey) {
                         onPreview?.(asset);

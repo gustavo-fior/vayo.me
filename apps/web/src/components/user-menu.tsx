@@ -210,25 +210,29 @@ export default function UserMenu({
                     onCheckedChange={canvasControls.setMoreSpace}
                   />
                 </div>
-                <DropdownMenuSeparator />
-                <div
-                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
-                  onClick={() =>
-                    canvasControls.setRounded(!canvasControls.rounded)
-                  }
-                >
-                  <div className="flex gap-2 items-center">
-                    <CircleIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
-                    <Label className="cursor-pointer select-none font-normal">
-                      Rounded
-                    </Label>
-                    <Shortcut>R</Shortcut>
-                  </div>
-                  <Switch
-                    checked={canvasControls.rounded}
-                    onCheckedChange={canvasControls.setRounded}
-                  />
-                </div>
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <div
+              className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+              onClick={() =>
+                canvasControls.setRounded(!canvasControls.rounded)
+              }
+            >
+              <div className="flex gap-2 items-center">
+                <CircleIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                <Label className="cursor-pointer select-none font-normal">
+                  Rounded
+                </Label>
+                <Shortcut>R</Shortcut>
+              </div>
+              <Switch
+                checked={canvasControls.rounded}
+                onCheckedChange={canvasControls.setRounded}
+              />
+            </div>
+            {canvasControls.viewMode === "masonry" && (
+              <>
                 <DropdownMenuSeparator />
                 <div className="flex items-center justify-between gap-2 p-2">
                   <div className="flex gap-2 items-center">

@@ -258,14 +258,7 @@ export function AssetUploadZone({
     };
   }, [handleFiles]);
 
-  const submitUrl = useCallback((rawUrl: string) => {
-    const url = rawUrl.trim();
-    if (!url) return;
-    const videoExts = [".mp4", ".webm", ".mov", ".ogg"];
-    const isVideo = videoExts.some((ext) =>
-      url.toLowerCase().split("?")[0].endsWith(ext)
-    );
-    const assetType = isVideo ? ("video" as const) : ("image" as const);
+  const doSubmitUrl = useCallback((url: string, assetType: "image" | "video") => {
     const tempId = crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -342,9 +335,51 @@ export function AssetUploadZone({
         },
       }
     );
-
-    setUrlInput("");
   }, [folderId, createAsset]);
+
+  const submitUrl = useCallback((rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (!url) return;
+
+    try {
+      new URL(url);
+    } catch {
+      toast.error("Please enter a valid URL");
+      return;
+    }
+
+    const videoExts = [".mp4", ".webm", ".mov", ".ogg"];
+    const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"];
+    const urlPath = url.toLowerCase().split("?")[0];
+    const isVideo = videoExts.some((ext) => urlPath.endsWith(ext));
+    const isImage = imageExts.some((ext) => urlPath.endsWith(ext));
+
+    if (!isVideo && !isImage) {
+      // Try to validate by loading as an image
+      const img = new window.Image();
+      img.onload = () => {
+        doSubmitUrl(url, "image");
+      };
+      img.onerror = () => {
+        // Try as video
+        const video = document.createElement("video");
+        video.onloadedmetadata = () => {
+          doSubmitUrl(url, "video");
+        };
+        video.onerror = () => {
+          toast.error("URL does not point to a valid image or video");
+        };
+        video.src = url;
+      };
+      img.src = url;
+      setUrlInput("");
+      return;
+    }
+
+    const assetType = isVideo ? ("video" as const) : ("image" as const);
+    doSubmitUrl(url, assetType);
+    setUrlInput("");
+  }, [doSubmitUrl]);
 
   const handleUrlSubmit = useCallback(() => {
     submitUrl(urlInput);
