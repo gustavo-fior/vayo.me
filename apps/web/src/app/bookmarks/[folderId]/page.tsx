@@ -185,7 +185,7 @@ export default function Bookmarks() {
               <button
                 type="button"
                 aria-label="Previous asset"
-                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none ring-0 transition hover:bg-black/70 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
                 onClick={() => navigatePreview("previous")}
               >
                 <ChevronLeftIcon className="size-5" />
@@ -209,7 +209,7 @@ export default function Bookmarks() {
               <button
                 type="button"
                 aria-label="Next asset"
-                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none ring-0 transition hover:bg-black/70 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
                 onClick={() => navigatePreview("next")}
               >
                 <ChevronRightIcon className="size-5" />
