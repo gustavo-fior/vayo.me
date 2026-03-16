@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "VAYØ",
-  description: "A home for your most amazing links",
+  description: "A home for your most amazing discoveries.",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     title: "VAYØ",
-    description: "A home for your most amazing links",
+    description: "A home for your most amazing discoveries.",
     url: "https://vayo.me",
     siteName: "VAYØ",
     locale: "en_US",

@@ -32,7 +32,7 @@ export async function generateMetadata(
 
     return {
       title: folder.name,
-      description: "Check out these bookmarks!",
+      description: "A home for your most amazing discoveries.",
       icons: {
         icon: getFaviconForFolder(folder.icon),
         apple: getFaviconForFolder(folder.icon),
@@ -41,7 +41,7 @@ export async function generateMetadata(
       openGraph: {
         type: "website",
         title: folder.name,
-        description: "Check out these bookmarks!",
+        description: "A home for your most amazing discoveries.",
         url: `https://vayo.me/bookmarks/${folderId}`,
       },
     };
@@ -50,7 +50,7 @@ export async function generateMetadata(
 
     return {
       title: "VAYØ",
-      description: "A home for your most amazing links",
+      description: "A home for your most amazing discoveries.",
     };
   }
 }

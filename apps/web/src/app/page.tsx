@@ -390,8 +390,8 @@ export default function Home() {
           transition={{ duration: 0.2, ease: "easeInOut", delay: 0.4 }}
           className="text-muted-foreground mt-4"
         >
-          A home for your most amazing links. Save and share the most precious
-          bits of the internet.
+          A home for your most amazing discoveries. Save and share the most
+          precious bits of the internet.
         </motion.p>
         <motion.div
           initial={{ opacity: 0 }}

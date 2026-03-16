@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 import type { Folder } from "../page";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // Image metadata
 export const alt = "VAYØ";
@@ -28,9 +30,9 @@ export default async function Image({
 
   const folder = (await res.json()) as Folder;
 
-  const geistSemiBold = await fetch(
-    new URL("../../../../assets/Geist-SemiBold.ttf", import.meta.url)
-  ).then((res) => res.arrayBuffer());
+  const geistSemiBold = await readFile(
+    join(process.cwd(), "assets/Geist-SemiBold.ttf")
+  );
 
   return new ImageResponse(
     (
