@@ -57,7 +57,7 @@ export default async function Image({
           <h2 tw="flex flex-col font-semibold tracking-tight text-left">
             <span tw="text-white text-5xl">{folder.icon}</span>
             <span
-              tw="text-white mt-16 text-6xl"
+              tw="text-white mt-12 text-6xl"
               style={{ fontFamily: "Geist", fontWeight: "600" }}
             >
               {folder.name}
