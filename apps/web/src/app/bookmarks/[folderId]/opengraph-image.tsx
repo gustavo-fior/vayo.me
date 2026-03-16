@@ -20,11 +20,15 @@ export default async function Image({
 }) {
   const { folderId } = await params;
 
-  const folder = await fetch(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/getPublicFolderById?folderId=${folderId}`
-  ).then((res: Response) => {
-    return res.json() as Promise<Folder>;
-  });
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/getFolderById?folderId=${folderId}`
+  );
+
+  if (!res.ok) {
+    return new Response("Folder not found", { status: 404 });
+  }
+
+  const folder = (await res.json()) as Folder;
 
   const geistSemiBold = await readFile(
     join(process.cwd(), "assets/Geist-SemiBold.ttf")
