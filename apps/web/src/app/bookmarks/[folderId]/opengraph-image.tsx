@@ -16,10 +16,12 @@ export const contentType = "image/png";
 export default async function Image({
   params,
 }: {
-  params: { folderId: string };
+  params: Promise<{ folderId: string }>;
 }) {
+  const { folderId } = await params;
+
   const folder = await fetch(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/getFolderById?folderId=${params.folderId}`
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/getPublicFolderById?folderId=${folderId}`
   ).then((res: Response) => {
     return res.json() as Promise<Folder>;
   });
