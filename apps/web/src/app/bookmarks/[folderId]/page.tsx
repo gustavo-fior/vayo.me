@@ -180,28 +180,17 @@ export default function Bookmarks() {
           className="bg-transparent !border-0 shadow-none max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
         >
           <DialogTitle className="sr-only">Asset preview</DialogTitle>
-          <div className="relative flex items-center justify-center">
+          <div className="flex items-center justify-center gap-3 md:gap-4">
             {allAssets.length > 1 && previewAsset && (
-              <>
-                <button
-                  type="button"
-                  aria-label="Previous asset"
-                  className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:left-4"
-                  onClick={() => navigatePreview("previous")}
-                >
-                  <ChevronLeftIcon className="size-5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next asset"
-                  className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:right-4"
-                  onClick={() => navigatePreview("next")}
-                >
-                  <ChevronRightIcon className="size-5" />
-                </button>
-              </>
+              <button
+                type="button"
+                aria-label="Previous asset"
+                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                onClick={() => navigatePreview("previous")}
+              >
+                <ChevronLeftIcon className="size-5" />
+              </button>
             )}
-
             {previewAsset?.assetType === "video" ? (
               <video
                 src={previewAsset.url}
@@ -216,6 +205,16 @@ export default function Bookmarks() {
                 className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
               />
             ) : null}
+            {allAssets.length > 1 && previewAsset && (
+              <button
+                type="button"
+                aria-label="Next asset"
+                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                onClick={() => navigatePreview("next")}
+              >
+                <ChevronRightIcon className="size-5" />
+              </button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
