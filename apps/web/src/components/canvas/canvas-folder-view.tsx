@@ -7,7 +7,11 @@ import { AssetUploadZone } from "./asset-upload-zone";
 import { MasonryGrid } from "./masonry-grid";
 import { CanvasView } from "./canvas-view";
 import { EmptyState } from "../empty-state";
-import { LayoutPanelLeftIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LayoutPanelLeftIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { CanvasAssetType } from "./asset-card";
 import type { CanvasControls } from "../user-menu";
@@ -299,23 +303,34 @@ export function CanvasFolderView({
           : a.updatedAt.toISOString(),
     })) ?? [];
 
+  const navigatePreview = useCallback(
+    (direction: "next" | "previous") => {
+      if (!previewAsset || allAssets.length < 2) return;
+
+      const idx = allAssets.findIndex((a) => a.id === previewAsset.id);
+      if (idx === -1) return;
+
+      const nextAsset =
+        direction === "next"
+          ? allAssets[(idx + 1) % allAssets.length]
+          : allAssets[(idx - 1 + allAssets.length) % allAssets.length];
+
+      setPreviewAsset(nextAsset);
+    },
+    [previewAsset, allAssets]
+  );
+
   // Arrow key navigation in lightbox
   useEffect(() => {
     if (!previewAsset) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       e.preventDefault();
-      const idx = allAssets.findIndex((a) => a.id === previewAsset.id);
-      if (idx === -1) return;
-      const next =
-        e.key === "ArrowRight"
-          ? allAssets[(idx + 1) % allAssets.length]
-          : allAssets[(idx - 1 + allAssets.length) % allAssets.length];
-      setPreviewAsset(next);
+      navigatePreview(e.key === "ArrowRight" ? "next" : "previous");
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [previewAsset, allAssets]);
+  }, [previewAsset, navigatePreview]);
 
   const isEmpty =
     assets.isSuccess &&
@@ -379,20 +394,43 @@ export function CanvasFolderView({
           className="bg-transparent border-none !border-0 shadow-none max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
         >
           <DialogTitle className="sr-only">Asset preview</DialogTitle>
-          {previewAsset?.assetType === "video" ? (
-            <video
-              src={previewAsset.url}
-              controls
-              autoPlay
-              className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
-            />
-          ) : previewAsset ? (
-            <img
-              src={previewAsset.url}
-              alt={previewAsset.originalFilename || "Asset"}
-              className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
-            />
-          ) : null}
+          <div className="relative flex items-center justify-center">
+            {allAssets.length > 1 && previewAsset && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Previous asset"
+                  className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:left-4"
+                  onClick={() => navigatePreview("previous")}
+                >
+                  <ChevronLeftIcon className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next asset"
+                  className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:right-4"
+                  onClick={() => navigatePreview("next")}
+                >
+                  <ChevronRightIcon className="size-5" />
+                </button>
+              </>
+            )}
+
+            {previewAsset?.assetType === "video" ? (
+              <video
+                src={previewAsset.url}
+                controls
+                autoPlay
+                className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
+              />
+            ) : previewAsset ? (
+              <img
+                src={previewAsset.url}
+                alt={previewAsset.originalFilename || "Asset"}
+                className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
