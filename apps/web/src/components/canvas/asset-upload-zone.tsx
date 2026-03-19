@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { ImageIcon, Loader2, Upload, Link, ArrowUpIcon, CircleXIcon } from "lucide-react";
+import {
+  ImageIcon,
+  Loader2,
+  Upload,
+  Link,
+  ArrowUpIcon,
+  CircleXIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
@@ -260,84 +267,87 @@ export function AssetUploadZone({
     };
   }, [handleFiles]);
 
-  const doSubmitUrl = useCallback((url: string, assetType: "image" | "video") => {
-    const tempId = crypto.randomUUID();
-    const now = new Date().toISOString();
+  const doSubmitUrl = useCallback(
+    (url: string, assetType: "image" | "video") => {
+      const tempId = crypto.randomUUID();
+      const now = new Date().toISOString();
 
-    // Optimistic insert
-    queryClient.setQueryData(
-      ["canvasAssets", "getAssetsByFolderId", folderId],
-      (old: any) => {
-        const tempAsset = {
-          id: tempId,
-          _temp: true,
-          url,
-          assetType,
-          mimeType: null,
-          fileSize: null,
-          width: null,
-          height: null,
-          originalFilename: null,
-          canvasX: null,
-          canvasY: null,
-          canvasWidth: null,
-          canvasHeight: null,
-          sortOrder: -1,
-          canvasZIndex: 0,
-          folderId,
-          createdAt: now,
-          updatedAt: now,
-        };
-        if (!old) {
-          return { pages: [[tempAsset]], pageParams: [1] };
+      // Optimistic insert
+      queryClient.setQueryData(
+        ["canvasAssets", "getAssetsByFolderId", folderId],
+        (old: any) => {
+          const tempAsset = {
+            id: tempId,
+            _temp: true,
+            url,
+            assetType,
+            mimeType: null,
+            fileSize: null,
+            width: null,
+            height: null,
+            originalFilename: null,
+            canvasX: null,
+            canvasY: null,
+            canvasWidth: null,
+            canvasHeight: null,
+            sortOrder: -1,
+            canvasZIndex: 0,
+            folderId,
+            createdAt: now,
+            updatedAt: now,
+          };
+          if (!old) {
+            return { pages: [[tempAsset]], pageParams: [1] };
+          }
+          return {
+            ...old,
+            pages: old.pages.map((page: any[], i: number) =>
+              i === 0 ? [tempAsset, ...page] : page
+            ),
+          };
         }
-        return {
-          ...old,
-          pages: old.pages.map((page: any[], i: number) =>
-            i === 0 ? [tempAsset, ...page] : page
-          ),
-        };
-      }
-    );
+      );
 
-    createAsset.mutate(
-      { folderId, url, assetType },
-      {
-        onSuccess: (newAsset) => {
-          queryClient.setQueryData(
-            ["canvasAssets", "getAssetsByFolderId", folderId],
-            (old: any) => {
-              if (!old) return old;
-              return {
-                ...old,
-                pages: old.pages.map((page: any[]) =>
-                  page.map((a: any) => {
-                    if (a.id !== tempId) return a;
-                    const { _temp, ...rest } = a;
-                    return { ...rest, ...newAsset, id: newAsset.id };
-                  })
-                ),
-              };
-            }
-          );
-        },
-        onError: () => {
-          queryClient.setQueryData(
-            ["canvasAssets", "getAssetsByFolderId", folderId],
-            (old: any) => {
-              if (!old) return old;
-              return {
-                ...old,
-                pages: old.pages.map((page: any[]) =>
-                  page.filter((a: any) => a.id !== tempId)
-                ),
-              };
-            }
-          );
-        },
-      }
-    );
-  }, [folderId, createAsset]);
+      createAsset.mutate(
+        { folderId, url, assetType },
+        {
+          onSuccess: (newAsset) => {
+            queryClient.setQueryData(
+              ["canvasAssets", "getAssetsByFolderId", folderId],
+              (old: any) => {
+                if (!old) return old;
+                return {
+                  ...old,
+                  pages: old.pages.map((page: any[]) =>
+                    page.map((a: any) => {
+                      if (a.id !== tempId) return a;
+                      const { _temp, ...rest } = a;
+                      return { ...rest, ...newAsset, id: newAsset.id };
+                    })
+                  ),
+                };
+              }
+            );
+          },
+          onError: () => {
+            queryClient.setQueryData(
+              ["canvasAssets", "getAssetsByFolderId", folderId],
+              (old: any) => {
+                if (!old) return old;
+                return {
+                  ...old,
+                  pages: old.pages.map((page: any[]) =>
+                    page.filter((a: any) => a.id !== tempId)
+                  ),
+                };
+              }
+            );
+          },
+        }
+      );
+    },
+    [folderId, createAsset]
+  );
 
   const showInvalidUrlError = useCallback((message: string) => {
     setIsInvalidUrl(true);
@@ -358,49 +368,62 @@ export function AssetUploadZone({
     );
   }, []);
 
-  const submitUrl = useCallback((rawUrl: string) => {
-    const url = rawUrl.trim();
-    if (!url) return;
+  const submitUrl = useCallback(
+    (rawUrl: string) => {
+      const url = rawUrl.trim();
+      if (!url) return;
 
-    try {
-      new URL(url);
-    } catch {
-      showInvalidUrlError("Please enter a valid URL");
-      return;
-    }
+      try {
+        new URL(url);
+      } catch {
+        showInvalidUrlError("Please enter a valid URL");
+        return;
+      }
 
-    const videoExts = [".mp4", ".webm", ".mov", ".ogg"];
-    const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"];
-    const urlPath = url.toLowerCase().split("?")[0];
-    const isVideo = videoExts.some((ext) => urlPath.endsWith(ext));
-    const isImage = imageExts.some((ext) => urlPath.endsWith(ext));
+      const videoExts = [".mp4", ".webm", ".mov", ".ogg"];
+      const imageExts = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".svg",
+        ".bmp",
+        ".ico",
+        ".avif",
+      ];
+      const urlPath = url.toLowerCase().split("?")[0];
+      const isVideo = videoExts.some((ext) => urlPath.endsWith(ext));
+      const isImage = imageExts.some((ext) => urlPath.endsWith(ext));
 
-    if (!isVideo && !isImage) {
-      // Try to validate by loading as an image
-      const img = new window.Image();
-      img.onload = () => {
-        doSubmitUrl(url, "image");
-      };
-      img.onerror = () => {
-        // Try as video
-        const video = document.createElement("video");
-        video.onloadedmetadata = () => {
-          doSubmitUrl(url, "video");
+      if (!isVideo && !isImage) {
+        // Try to validate by loading as an image
+        const img = new window.Image();
+        img.onload = () => {
+          doSubmitUrl(url, "image");
         };
-        video.onerror = () => {
-          showInvalidUrlError("URL does not point to a valid image or video");
+        img.onerror = () => {
+          // Try as video
+          const video = document.createElement("video");
+          video.onloadedmetadata = () => {
+            doSubmitUrl(url, "video");
+          };
+          video.onerror = () => {
+            showInvalidUrlError("URL does not point to a valid image or video");
+          };
+          video.src = url;
         };
-        video.src = url;
-      };
-      img.src = url;
+        img.src = url;
+        setUrlInput("");
+        return;
+      }
+
+      const assetType = isVideo ? ("video" as const) : ("image" as const);
+      doSubmitUrl(url, assetType);
       setUrlInput("");
-      return;
-    }
-
-    const assetType = isVideo ? ("video" as const) : ("image" as const);
-    doSubmitUrl(url, assetType);
-    setUrlInput("");
-  }, [doSubmitUrl, showInvalidUrlError]);
+    },
+    [doSubmitUrl, showInvalidUrlError]
+  );
 
   const handleUrlSubmit = useCallback(() => {
     submitUrl(urlInput);
@@ -461,7 +484,7 @@ export function AssetUploadZone({
         <div
           className={`flex ${
             floating
-              ? "bg-neutral-100 dark:bg-neutral-900 backdrop-blur-sm rounded-lg border border-border shadow-lg"
+              ? "bg-neutral-100/90 dark:bg-neutral-900/90 backdrop-blur-[4px] rounded-lg border border-border shadow-lg"
               : ""
           }`}
         >
@@ -493,7 +516,7 @@ export function AssetUploadZone({
               onClick={handleUrlSubmit}
               style={{ boxShadow: "none" }}
               disabled={!urlInput.trim() || createAsset.isPending}
-              className="h-10 border-0 absolute right-0 top-0 z-50 rounded-sm active:scale-95 duration-200 hover:bg-transparent"
+              className="size-10 rounded-r-none border-0 absolute right-0 top-0 z-50 rounded-l-sm active:scale-95 duration-200 hover:bg-transparent"
             >
               {createAsset.isPending ? (
                 <Loader2 className="size-3.5 animate-spin stroke-[1.5] text-neutral-500 dark:text-neutral-400" />
