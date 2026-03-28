@@ -11,6 +11,7 @@ import {
   CopyIcon,
   FolderOpenIcon,
   Globe,
+  Palette,
   Pencil,
   X,
 } from "lucide-react";
@@ -48,6 +49,8 @@ export const Bookmark = ({
   const [isHovering, setIsHovering] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isFaviconUnavailable, setIsFaviconUnavailable] = useState(false);
+
+  const isColor = bookmark.type === "color";
 
   const filteredFolders = folders.filter(
     (folder) => folder.id !== bookmark.folderId && folder.type === "bookmarks"
@@ -105,7 +108,7 @@ export const Bookmark = ({
 
         toast.custom(() => (
           <div className="flex justify-center mx-auto">
-            <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-5 py-2 text-sm font-medium flex items-center gap-2.5">
+            <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-5 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
               <CircleCheckIcon
                 className="size-3.5 text-green-400 dark:text-green-600"
                 strokeWidth={2.2}
@@ -173,7 +176,7 @@ export const Bookmark = ({
         });
         toast.custom(() => (
           <div className="flex justify-center mx-auto">
-            <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+            <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
               <CircleCheckIcon
                 className="size-3.5 text-green-400 dark:text-green-600"
                 strokeWidth={2.2}
@@ -259,44 +262,75 @@ export const Bookmark = ({
               return;
             }
 
-            window.open(bookmark.url, "_blank");
+            if (isColor && bookmark.color) {
+              navigator.clipboard.writeText(bookmark.color);
+              toast.custom(() => (
+                <div className="flex justify-center mx-auto">
+                  <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
+                    <CircleCheckIcon
+                      className="size-3.5 text-green-400 dark:text-green-600 fill-green-400/20 dark:fill-green-600/30"
+                      strokeWidth={2.2}
+                    />
+                    <h1>Color copied to clipboard</h1>
+                  </div>
+                </div>
+              ));
+            } else if (bookmark.url) {
+              window.open(bookmark.url, "_blank");
+            }
           }}
         >
           <div className="flex items-center gap-3 w-[calc(100%-4rem)]">
-            {bookmark.ogImageUrl &&
-              showOgImage &&
-              isValidURL(bookmark.ogImageUrl) && (
-                <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10">
-                  <Image
-                    src={bookmark.ogImageUrl}
-                    alt="OG Image"
-                    className="rounded-[3px] object-cover h-10 w-20"
-                    width={320}
-                    height={180}
-                  />
-                </div>
-              )}
-            {!bookmark.ogImageUrl && showOgImage && (
-              <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10 rounded-[3px] bg-muted-foreground/10 flex items-center justify-center">
-                <Globe className="size-3 text-neutral-300 dark:text-neutral-600" />
-              </div>
-            )}
-            {!showOgImage && (
+            {isColor && bookmark.color ? (
+              showOgImage ? (
+                <div
+                  className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10 rounded-[3px]"
+                  style={{ backgroundColor: bookmark.color }}
+                />
+              ) : (
+                <div
+                  className="w-4 h-4 min-w-4 min-h-4 rounded-full"
+                  style={{ backgroundColor: bookmark.color }}
+                />
+              )
+            ) : (
               <>
-                {bookmark.faviconUrl &&
-                bookmark.faviconUrl !== "undefined" &&
-                isValidURL(bookmark.faviconUrl) &&
-                !isFaviconUnavailable ? (
-                  <Image
-                    src={getGoogleFavicon(bookmark.url)}
-                    alt="Favicon"
-                    className="w-4 h-4 rounded-xs"
-                    width={16}
-                    height={16}
-                    onError={() => setIsFaviconUnavailable(true)}
-                  />
-                ) : (
-                  <Globe className="size-4 text-neutral-300 dark:text-neutral-600 min-w-4 min-h-4" />
+                {bookmark.ogImageUrl &&
+                  showOgImage &&
+                  isValidURL(bookmark.ogImageUrl) && (
+                    <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10">
+                      <Image
+                        src={bookmark.ogImageUrl}
+                        alt="OG Image"
+                        className="rounded-[3px] object-cover h-10 w-20"
+                        width={320}
+                        height={180}
+                      />
+                    </div>
+                  )}
+                {!bookmark.ogImageUrl && showOgImage && (
+                  <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10 rounded-[3px] bg-muted-foreground/10 flex items-center justify-center">
+                    <Globe className="size-3 text-neutral-300 dark:text-neutral-600" />
+                  </div>
+                )}
+                {!showOgImage && (
+                  <>
+                    {bookmark.faviconUrl &&
+                    bookmark.faviconUrl !== "undefined" &&
+                    isValidURL(bookmark.faviconUrl) &&
+                    !isFaviconUnavailable ? (
+                      <Image
+                        src={getGoogleFavicon(bookmark.url!)}
+                        alt="Favicon"
+                        className="w-4 h-4 rounded-xs"
+                        width={16}
+                        height={16}
+                        onError={() => setIsFaviconUnavailable(true)}
+                      />
+                    ) : (
+                      <Globe className="size-4 text-neutral-300 dark:text-neutral-600 min-w-4 min-h-4" />
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -353,14 +387,14 @@ export const Bookmark = ({
                 </span>
               )}
               <div className="flex items-center gap-1.5">
-                {showOgImage && (
+                {showOgImage && !isColor && (
                   <>
                     {bookmark.faviconUrl &&
                     bookmark.faviconUrl !== "undefined" &&
                     isValidURL(bookmark.faviconUrl) &&
                     !isFaviconUnavailable ? (
                       <Image
-                        src={getGoogleFavicon(bookmark.url)}
+                        src={getGoogleFavicon(bookmark.url!)}
                         alt="Favicon"
                         className="size-2.5 rounded-xs"
                         width={16}
@@ -382,10 +416,12 @@ export const Bookmark = ({
                         : "md:max-w-[20rem] hidden md:block"
                     }`}
                   >
-                    {bookmark.description
+                    {isColor
+                      ? bookmark.color
+                      : bookmark.description
                       ? bookmark.description
                       : bookmark.url
-                          .replace(/^(https?:\/\/)/, "")
+                          ?.replace(/^(https?:\/\/)/, "")
                           .replace(/\/$/, "")}
                   </span>
                 )}
@@ -440,27 +476,34 @@ export const Bookmark = ({
         )}
         <ContextMenuItem
           onClick={() => {
-            navigator.clipboard.writeText(bookmark.url);
+            const textToCopy = isColor
+              ? bookmark.color ?? ""
+              : bookmark.url ?? "";
+            navigator.clipboard.writeText(textToCopy);
             toast.custom(() => (
               <div className="flex justify-center mx-auto">
-                <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+                <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
                   <CircleCheckIcon
                     className="size-3.5 text-green-400 dark:text-green-600 fill-green-400/20 dark:fill-green-600/30"
                     strokeWidth={2.2}
                   />
-                  <h1>Link copied to clipboard</h1>
+                  <h1>{isColor ? "Color" : "Link"} copied to clipboard</h1>
                 </div>
               </div>
             ));
           }}
           className="flex items-center gap-2"
         >
-          <CopyIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
-          Copy link
+          {isColor ? (
+            <Palette className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+          ) : (
+            <CopyIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+          )}
+          {isColor ? "Copy color" : "Copy link"}
         </ContextMenuItem>
-        <ContextMenuSeparator />
         {!isPublicPage && filteredFolders.length > 0 && (
           <>
+            <ContextMenuSeparator />
             <ContextMenuSub>
               <ContextMenuSubTrigger
                 inset

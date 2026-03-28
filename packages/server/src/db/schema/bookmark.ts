@@ -1,6 +1,8 @@
-import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { folder } from "./folder";
 import { relations } from "drizzle-orm";
+
+export const bookmarkTypeEnum = pgEnum("bookmark_type", ["link", "color"]);
 
 export const bookmark = pgTable(
   "bookmark",
@@ -8,7 +10,9 @@ export const bookmark = pgTable(
     id: text("id").primaryKey().notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
-    url: text("url").notNull(),
+    type: bookmarkTypeEnum("type").notNull().default("link"),
+    url: text("url"),
+    color: text("color"),
     faviconUrl: text("favicon_url"),
     ogImageUrl: text("og_image_url"),
     description: text("description"),

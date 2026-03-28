@@ -621,7 +621,9 @@ export function CanvasView({
               <ContextMenu>
                 <ContextMenuTrigger className="w-full h-full">
                   <div
-                    className={`w-full h-full ${rounded ? "rounded-md" : ""} overflow-hidden group-hover:border-primary/40 transition-colors shadow-sm cursor-pointer`}
+                    className={`w-full h-full ${
+                      rounded ? "rounded-md" : ""
+                    } overflow-hidden group-hover:border-primary/40 transition-colors shadow-sm cursor-pointer`}
                     onClick={(e) => {
                       if (!dragMovedRef.current.get(asset.id) && !e.shiftKey) {
                         onPreview?.(asset);
@@ -776,7 +778,7 @@ export function CanvasView({
                       toast.custom(
                         () => (
                           <div className="flex justify-center mx-auto">
-                            <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+                            <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
                               <CircleCheckIcon
                                 className="size-3.5 text-green-400 dark:text-green-600"
                                 strokeWidth={2.2}
@@ -828,7 +830,7 @@ export function CanvasView({
                             toast.custom(
                               () => (
                                 <div className="flex justify-center mx-auto">
-                                  <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+                                  <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
                                     <CircleCheckIcon
                                       className="size-3.5 text-green-400 dark:text-green-600"
                                       strokeWidth={2.2}

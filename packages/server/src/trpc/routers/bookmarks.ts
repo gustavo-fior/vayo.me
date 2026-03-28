@@ -27,6 +27,8 @@ export const bookmarksRouter = router({
           updatedAt: bookmark.updatedAt,
           folderId: bookmark.folderId,
           url: bookmark.url,
+          type: bookmark.type,
+          color: bookmark.color,
         })
         .from(bookmark)
         .where(eq(bookmark.folderId, input.folderId))
@@ -56,6 +58,8 @@ export const bookmarksRouter = router({
           updatedAt: bookmark.updatedAt,
           folderId: bookmark.folderId,
           url: bookmark.url,
+          type: bookmark.type,
+          color: bookmark.color,
         })
         .from(bookmark)
         .where(eq(bookmark.folderId, input.folderId))
@@ -156,6 +160,53 @@ export const bookmarksRouter = router({
           `[${new Date().toISOString()}] Error during bookmark insert:`,
           error
         );
+        return null;
+      }
+    }),
+  createColorBookmark: protectedProcedure
+    .input(
+      z.object({
+        color: z.string(),
+        title: z.string().optional(),
+        folderId: z.string(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const updatedFolder = await db
+        .update(folder)
+        .set({ updatedAt: new Date() })
+        .where(
+          and(
+            eq(folder.id, input.folderId),
+            eq(folder.userId, ctx.session.user.id)
+          )
+        )
+        .returning();
+
+      if (!updatedFolder) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Folder not found" });
+      }
+
+      const bookmarkId = uuidv7();
+
+      const bookmarkData = {
+        id: bookmarkId,
+        type: "color" as const,
+        color: input.color,
+        title: input.title ?? input.color,
+        url: null,
+        faviconUrl: null,
+        ogImageUrl: null,
+        description: null,
+        summary: null,
+        folderId: input.folderId,
+      };
+
+      try {
+        const result = await db.insert(bookmark).values(bookmarkData);
+        return result;
+      } catch (error) {
+        console.error("Error creating color bookmark:", error);
         return null;
       }
     }),

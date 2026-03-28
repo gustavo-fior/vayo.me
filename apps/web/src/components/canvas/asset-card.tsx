@@ -126,7 +126,7 @@ export function AssetCard({
             toast.custom(
               () => (
                 <div className="flex justify-center mx-auto">
-                  <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+                  <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
                     <CircleCheckIcon
                       className="size-3.5 text-green-400 dark:text-green-600"
                       strokeWidth={2.2}
@@ -173,7 +173,7 @@ export function AssetCard({
                   toast.custom(
                     () => (
                       <div className="flex justify-center mx-auto">
-                        <div className="bg-popover text-popover-foreground border border-input/50 rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5">
+                        <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
                           <CircleCheckIcon
                             className="size-3.5 text-green-400 dark:text-green-600"
                             strokeWidth={2.2}

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { groupBookmarksByMonth } from "@/utils/get-bookmarks-by-month";
 import { queryClient, trpc, trpcClient } from "@/utils/trpc";
 import { addHttpIfMissing, isValidURL } from "@/utils/url-validator";
+import { isValidColor } from "@/utils/color-validator";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { BookmarkIcon, Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -177,6 +178,81 @@ export default function Bookmarks() {
     })
   );
 
+  const createColorBookmark = useMutation(
+    trpc.bookmarks.createColorBookmark.mutationOptions({
+      onMutate: async ({ color, folderId }) => {
+        setIsBookmarkAdded(true);
+        setTimeout(() => {
+          setIsBookmarkAdded(false);
+        }, 2000);
+
+        await queryClient.cancelQueries({
+          queryKey: ["bookmarks", "getBookmarksByFolderId", folderId],
+        });
+
+        const previousBookmarks = queryClient.getQueryData([
+          "bookmarks",
+          "getBookmarksByFolderId",
+          folderId,
+        ]);
+
+        const optimisticBookmark = {
+          id: `temp-${Date.now()}-${Math.random()}`,
+          url: null,
+          type: "color" as const,
+          color,
+          title: color,
+          description: null,
+          faviconUrl: null,
+          ogImageUrl: null,
+          folderId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        queryClient.setQueryData(
+          ["bookmarks", "getBookmarksByFolderId", folderId],
+          (old: any) => {
+            if (!old) {
+              return {
+                pages: [[optimisticBookmark]],
+                pageParams: [1],
+              };
+            }
+
+            const newPages = [...old.pages];
+            if (newPages.length > 0) {
+              newPages[0] = [optimisticBookmark, ...newPages[0]];
+            } else {
+              newPages[0] = [optimisticBookmark];
+            }
+
+            return {
+              ...old,
+              pages: newPages,
+            };
+          }
+        );
+
+        return { previousBookmarks, folderId };
+      },
+      onError: (_, __, context) => {
+        if (context?.previousBookmarks) {
+          queryClient.setQueryData(
+            ["bookmarks", "getBookmarksByFolderId", context.folderId],
+            context.previousBookmarks
+          );
+        }
+        toast.error("Failed to save color");
+      },
+      onSettled: (_, __, variables) => {
+        queryClient.invalidateQueries({
+          queryKey: ["bookmarks", "getBookmarksByFolderId", variables.folderId],
+        });
+      },
+    })
+  );
+
   useHotkeys("v", () => setShowOgImage(!showOgImage));
   useHotkeys("m", () => setShowMonths(!showMonths));
   useHotkeys("t", () => setTheme(theme === "dark" ? "light" : "dark"));
@@ -265,9 +341,12 @@ export default function Bookmarks() {
     const filteredBookmarks = searchQuery
       ? allBookmarks.filter(
           (bookmark) =>
-            bookmark.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            bookmark.url?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             bookmark.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             bookmark.description
+              ?.toLowerCase()
+              .includes(searchQuery.toLowerCase()) ||
+            bookmark.color
               ?.toLowerCase()
               .includes(searchQuery.toLowerCase())
         )
@@ -347,7 +426,14 @@ export default function Bookmarks() {
                     onChange={(e) => setUrl(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        if (isValidURL(url)) {
+                        if (isValidColor(url)) {
+                          const color = url.trim();
+                          setUrl("");
+                          createColorBookmark.mutate({
+                            color,
+                            folderId: selectedFolder!.id!,
+                          });
+                        } else if (isValidURL(url)) {
                           setUrl("");
                           createBookmark.mutate({
                             url: addHttpIfMissing(url),
@@ -363,7 +449,18 @@ export default function Bookmarks() {
                     }}
                     onPaste={(e) => {
                       const pastedText = e.clipboardData.getData("text");
-                      if (isValidURL(pastedText)) {
+                      if (isValidColor(pastedText)) {
+                        e.preventDefault();
+                        const color = pastedText.trim();
+                        setUrl(color);
+                        setTimeout(() => {
+                          createColorBookmark.mutate({
+                            color,
+                            folderId: selectedFolder!.id!,
+                          });
+                          setUrl("");
+                        }, 0);
+                      } else if (isValidURL(pastedText)) {
                         e.preventDefault();
                         setUrl(pastedText);
                         setTimeout(() => {
