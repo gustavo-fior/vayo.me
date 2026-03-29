@@ -138,14 +138,13 @@ export function AssetUploadZone({
           throw new Error(err.error || "Failed to get upload URL");
         }
 
-        const { signedUrl, token, publicUrl } = await urlRes.json();
+        const { signedUrl, publicUrl } = await urlRes.json();
 
-        // 2. Upload file directly to Supabase Storage
+        // 2. Upload file directly to R2
         const uploadRes = await fetch(signedUrl, {
           method: "PUT",
           headers: {
             "Content-Type": file.type,
-            "x-upsert": "false",
           },
           body: file,
         });

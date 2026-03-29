@@ -10,8 +10,10 @@ import { db } from "./db";
 import { and, eq } from "drizzle-orm";
 import { folder } from "./db/schema/folder";
 import { handle } from "hono/vercel";
-import { getSupabase } from "./lib/supabase";
 import { v7 as uuidv7 } from "uuid";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getR2, getR2PublicUrl, getR2Bucket } from "./lib/r2";
 
 const app = new Hono().basePath("/api");
 app.use(logger());
@@ -91,25 +93,25 @@ app.post("/upload-url", async (c) => {
   const ext = fileName.split(".").pop() || "bin";
   const storagePath = `${session.user.id}/${folderId}/${uuidv7()}.${ext}`;
 
-  const { data, error } = await getSupabase().storage
-    .from("canvas-assets")
-    .createSignedUploadUrl(storagePath);
+  try {
+    const command = new PutObjectCommand({
+      Bucket: getR2Bucket(),
+      Key: storagePath,
+      ContentType: contentType,
+    });
 
-  if (error || !data) {
-    console.error("Signed URL error:", error);
+    const signedUrl = await getSignedUrl(getR2(), command, { expiresIn: 3600 });
+    const publicUrl = getR2PublicUrl(storagePath);
+
+    return c.json({
+      signedUrl,
+      storagePath,
+      publicUrl,
+    });
+  } catch (err) {
+    console.error("Signed URL error:", err);
     return c.json({ error: "Failed to create upload URL" }, 500);
   }
-
-  const {
-    data: { publicUrl },
-  } = getSupabase().storage.from("canvas-assets").getPublicUrl(storagePath);
-
-  return c.json({
-    signedUrl: data.signedUrl,
-    token: data.token,
-    storagePath,
-    publicUrl,
-  });
 });
 
 app.get("/", (c) => {

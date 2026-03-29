@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { canvasAsset, folder } from "@/db/schema";
-import { getSupabase } from "@/lib/supabase";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { getR2, getR2Bucket } from "@/lib/r2";
 import { TRPCError } from "@trpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
@@ -246,14 +247,13 @@ export const canvasAssetsRouter = router({
         });
       }
 
-      // Try to delete from Supabase Storage if it's a storage URL
-      const supabaseUrl = process.env.SUPABASE_URL || "";
-      if (asset.url.includes(supabaseUrl)) {
-        // Extract storage path from the public URL
-        const pathMatch = asset.url.split("/canvas-assets/")[1];
-        if (pathMatch) {
-          await getSupabase().storage.from("canvas-assets").remove([pathMatch]);
-        }
+      // Delete from R2
+      const r2PublicUrl = process.env.R2_PUBLIC_URL || "";
+      if (r2PublicUrl && asset.url.startsWith(r2PublicUrl)) {
+        const key = asset.url.slice(r2PublicUrl.length + 1);
+        await getR2().send(
+          new DeleteObjectCommand({ Bucket: getR2Bucket(), Key: key })
+        );
       }
 
       await db.delete(canvasAsset).where(eq(canvasAsset.id, input));

@@ -95,7 +95,7 @@ const FLOATING_ITEMS: Array<{
   // Top-right video
   {
     type: "video",
-    url: "https://mnrsfbaegprkqibmsmxg.supabase.co/storage/v1/object/public/canvas-assets/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019cc9f0-126b-728e-8186-7ccd3e54cf0c.mp4",
+    url: "https://data.vayo.me/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019cc9f0-126b-728e-8186-7ccd3e54cf0c.mp4",
     style: { top: "-4%", right: "20%", width: 200, rotate: "3deg" },
   },
   // Mid-left bookmark
@@ -116,7 +116,7 @@ const FLOATING_ITEMS: Array<{
   // Bottom-left video
   {
     type: "video",
-    url: "https://mnrsfbaegprkqibmsmxg.supabase.co/storage/v1/object/public/canvas-assets/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019ccf9c-b9f3-7392-848c-b9c85627093f.mp4",
+    url: "https://data.vayo.me/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019ccf9c-b9f3-7392-848c-b9c85627093f.mp4",
     style: { bottom: "-34%", left: "8%", width: 200, rotate: "3deg" },
   },
   // Bottom-center bookmark
@@ -155,13 +155,13 @@ const FLOATING_ITEMS: Array<{
   // Extra: right video
   {
     type: "video",
-    url: "https://mnrsfbaegprkqibmsmxg.supabase.co/storage/v1/object/public/canvas-assets/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019ccf9b-e538-735c-9dc8-89f6852122b3.mp4",
+    url: "https://data.vayo.me/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019ccf9b-e538-735c-9dc8-89f6852122b3.mp4",
     style: { top: "70%", right: "-1%", width: 170, rotate: "-4deg" },
   },
   // Extra: bottom-center image
   {
     type: "image",
-    url: "https://mnrsfbaegprkqibmsmxg.supabase.co/storage/v1/object/public/canvas-assets/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019cc9e3-306e-741c-bcc5-31a33fa759c2.jpg",
+    url: "https://data.vayo.me/mAdM7NfbPUZvDgBBqANVf7Gvw0JPAU43/019cc9d6-2b36-739b-92aa-36042f721d77/019cc9e3-306e-741c-bcc5-31a33fa759c2.jpg",
     style: { bottom: "-2%", left: "56%", width: 150, rotate: "2deg" },
   },
   // Extra: bottom bookmark (right of center)
