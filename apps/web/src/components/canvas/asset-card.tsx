@@ -86,6 +86,7 @@ export function AssetCard({
         loading="eager"
         priority
         className={`w-full h-full object-cover ${radiusClass}`}
+        unoptimized
       />
     );
 
