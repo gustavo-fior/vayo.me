@@ -305,6 +305,7 @@ export const Bookmark = ({
                         className="rounded-[3px] object-cover h-10 w-20"
                         width={320}
                         height={180}
+                        unoptimized
                       />
                     </div>
                   )}
@@ -326,6 +327,7 @@ export const Bookmark = ({
                         width={16}
                         height={16}
                         onError={() => setIsFaviconUnavailable(true)}
+                        unoptimized
                       />
                     ) : (
                       <Globe className="size-4 text-neutral-300 dark:text-neutral-600 min-w-4 min-h-4" />
@@ -400,6 +402,7 @@ export const Bookmark = ({
                         width={16}
                         height={16}
                         onError={() => setIsFaviconUnavailable(true)}
+                        unoptimized
                       />
                     ) : (
                       <Globe className="size-3 text-neutral-300 dark:text-neutral-600" />
