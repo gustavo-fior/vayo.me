@@ -1,12 +1,19 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
 import {
+  VAYO_CHROME_EXTENSION_STORE_URL,
+  canRecommendChromeExtension,
+  checkVayoChromeExtensionInstalled,
+} from "@/lib/chrome-extension";
+import {
+  ArrowUpRight,
   Calendar,
   Columns3,
   CircleIcon,
@@ -20,10 +27,12 @@ import {
   Moon,
   User,
   VectorSquareIcon,
+  Chrome,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
@@ -62,6 +71,31 @@ export default function UserMenu({
   const router = useRouter();
   const { setTheme, theme } = useTheme();
   const { data: session } = authClient.useSession();
+  const [showExtensionInstall, setShowExtensionInstall] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const checkExtensionInstallation = async () => {
+      if (!canRecommendChromeExtension()) {
+        if (!isCancelled) {
+          setShowExtensionInstall(false);
+        }
+        return;
+      }
+
+      const isInstalled = await checkVayoChromeExtensionInstalled();
+      if (!isCancelled) {
+        setShowExtensionInstall(!isInstalled);
+      }
+    };
+
+    void checkExtensionInstallation();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   return (
     <DropdownMenu>
@@ -215,9 +249,7 @@ export default function UserMenu({
             <DropdownMenuSeparator />
             <div
               className="flex items-center justify-between gap-2 p-2 cursor-pointer"
-              onClick={() =>
-                canvasControls.setRounded(!canvasControls.rounded)
-              }
+              onClick={() => canvasControls.setRounded(!canvasControls.rounded)}
             >
               <div className="flex gap-2 items-center">
                 <CircleIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
@@ -297,6 +329,24 @@ export default function UserMenu({
                 onCheckedChange={() => setShowMonths(!showMonths)}
               />
             </div>
+          </>
+        )}
+
+        {showExtensionInstall && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <a
+                href={VAYO_CHROME_EXTENSION_STORE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="cursor-pointer"
+              >
+                <Chrome className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                <span>Install extension</span>
+                <ArrowUpRight className="ml-auto size-3.5 text-neutral-500" />
+              </a>
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>

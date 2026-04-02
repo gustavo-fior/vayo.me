@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { bookmark } from "@/db/schema";
+import { mergeBookmarkMetadata } from "@/lib/url-metadata";
 import Firecrawl from "@mendable/firecrawl-js";
 import { eq } from "drizzle-orm";
 
@@ -12,6 +13,11 @@ export const updateBookmarkSummary = async (
   const existingBookmark = await db.query.bookmark.findFirst({
     where: eq(bookmark.id, bookmarkId),
   });
+
+  if (!existingBookmark) {
+    return null;
+  }
+
   console.log(`[${new Date().toISOString()}] Starting Firecrawl scrape...`);
   const scrapeStartTime = Date.now();
 
@@ -28,21 +34,41 @@ export const updateBookmarkSummary = async (
 
   console.log(scrapeResponse);
 
+  const mergedMetadata = mergeBookmarkMetadata(
+    url,
+    {
+      title: existingBookmark.title,
+      description: existingBookmark.description,
+      faviconUrl: existingBookmark.faviconUrl,
+      ogImageUrl: existingBookmark.ogImageUrl,
+    },
+    {
+      title:
+        typeof scrapeResponse.metadata?.title === "string"
+          ? scrapeResponse.metadata.title
+          : null,
+      description:
+        typeof scrapeResponse.metadata?.description === "string"
+          ? scrapeResponse.metadata.description
+          : null,
+      faviconUrl:
+        typeof scrapeResponse.metadata?.favicon === "string"
+          ? scrapeResponse.metadata.favicon
+          : null,
+      ogImageUrl:
+        typeof scrapeResponse.metadata?.ogImage === "string"
+          ? scrapeResponse.metadata.ogImage
+          : null,
+    }
+  );
+
   const bookmarkData = {
-    ...existingBookmark,
-    title:
-      existingBookmark?.title ?? scrapeResponse.metadata?.title ?? "Untitled",
-    description:
-      existingBookmark?.description ??
-      scrapeResponse.metadata?.description ??
-      null,
-    faviconUrl:
-      existingBookmark?.faviconUrl ??
-      String(scrapeResponse.metadata?.favicon) ??
-      null,
-    ogImageUrl:
-      existingBookmark?.ogImageUrl ?? scrapeResponse.metadata?.ogImage ?? null,
-    summary: scrapeResponse.summary ?? null,
+    title: mergedMetadata.title ?? existingBookmark.title ?? "Untitled",
+    description: mergedMetadata.description,
+    faviconUrl: mergedMetadata.faviconUrl,
+    ogImageUrl: mergedMetadata.ogImageUrl,
+    summary: scrapeResponse.summary ?? existingBookmark.summary ?? null,
+    updatedAt: new Date(),
   };
 
   console.log("Updating bookmark summary:");

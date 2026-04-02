@@ -16,6 +16,7 @@ import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { isEditableElement } from "@/utils/is-editable-element";
 
 export function AssetUploadZone({
   folderId,
@@ -427,6 +428,31 @@ export function AssetUploadZone({
   const handleUrlSubmit = useCallback(() => {
     submitUrl(urlInput);
   }, [urlInput, submitUrl]);
+
+  useEffect(() => {
+    const handleWindowPaste = (event: ClipboardEvent) => {
+      if (event.defaultPrevented || isEditableElement(event.target)) {
+        return;
+      }
+
+      const pastedText = event.clipboardData?.getData("text")?.trim();
+      if (!pastedText) {
+        return;
+      }
+
+      try {
+        new URL(pastedText);
+      } catch {
+        return;
+      }
+
+      event.preventDefault();
+      submitUrl(pastedText);
+    };
+
+    window.addEventListener("paste", handleWindowPaste);
+    return () => window.removeEventListener("paste", handleWindowPaste);
+  }, [submitUrl]);
 
   return (
     <>

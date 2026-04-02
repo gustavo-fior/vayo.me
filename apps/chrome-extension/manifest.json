@@ -10,6 +10,14 @@
     "scripting",
     "cookies"
   ],
+  "externally_connectable": {
+    "matches": [
+      "https://vayo.me/*",
+      "https://www.vayo.me/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*"
+    ]
+  },
   "host_permissions": [
     "https://vayo.me/*",
     "https://www.vayo.me/*",

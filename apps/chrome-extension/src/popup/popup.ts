@@ -101,10 +101,14 @@ const tweetAssetsProgressText = document.getElementById(
 )!;
 const errorMessage = document.getElementById("error-message")!;
 
-type PendingAsset = { url: string; assetType: "image" | "video" };
+type PendingAsset = {
+  url: string;
+  assetType: "image" | "video";
+  sourcePageUrl?: string | null;
+};
 type PendingTweetAssets =
-  | { error: string; assets?: undefined }
-  | { assets: PendingAsset[]; error?: undefined };
+  | { error: string; assets?: undefined; sourcePageUrl?: string | null }
+  | { assets: PendingAsset[]; error?: undefined; sourcePageUrl?: string | null };
 
 let pendingAsset: PendingAsset | null = null;
 let pendingTweetAssetsData: PendingTweetAssets | null = null;
@@ -125,6 +129,45 @@ function showScreen(screen: HTMLElement) {
 function showError(msg: string) {
   errorMessage.textContent = msg;
   showScreen(screenError);
+}
+
+function normalizePageUrl(url: string | null | undefined) {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+function matchesCurrentPage(
+  sourcePageUrl: string | null | undefined,
+  currentPageUrl: string | null | undefined
+) {
+  if (!sourcePageUrl || !currentPageUrl) {
+    return false;
+  }
+
+  return normalizePageUrl(sourcePageUrl) === normalizePageUrl(currentPageUrl);
+}
+
+function resetAssetPreview() {
+  assetPreviewImg.src = "";
+  assetPreviewImg.classList.add("hidden");
+  assetPreviewVideo.pause();
+  assetPreviewVideo.removeAttribute("src");
+  assetPreviewVideo.load();
+  assetPreviewVideo.classList.add("hidden");
+}
+
+function resetBookmarkPreview() {
+  bookmarkTitle.textContent = "";
+  bookmarkUrl.textContent = "";
+  bookmarkFavicon.src = "";
+  bookmarkFavicon.style.display = "";
 }
 
 function populateSelect(
@@ -180,6 +223,8 @@ function renderTweetAssetsGrid(assets: PendingAsset[]) {
 
 async function init() {
   showScreen(screenLoading);
+  resetAssetPreview();
+  resetBookmarkPreview();
 
   const session = await getSession();
   if (!session) {
@@ -202,6 +247,24 @@ async function init() {
   ]);
   pendingAsset = storage.pendingAsset || null;
   pendingTweetAssetsData = storage.pendingTweetAssets || null;
+  const [activeTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true,
+  });
+  const activeTabUrl = activeTab?.url ?? null;
+
+  if (
+    pendingTweetAssetsData &&
+    !matchesCurrentPage(pendingTweetAssetsData.sourcePageUrl, activeTabUrl)
+  ) {
+    pendingTweetAssetsData = null;
+    await chrome.storage.local.remove("pendingTweetAssets");
+  }
+
+  if (pendingAsset && !matchesCurrentPage(pendingAsset.sourcePageUrl, activeTabUrl)) {
+    pendingAsset = null;
+    await chrome.storage.local.remove("pendingAsset");
+  }
 
   if (pendingTweetAssetsData) {
     if (pendingTweetAssetsData.error) {
@@ -250,16 +313,11 @@ async function init() {
 
     populateSelect(bookmarkFolderSelect, bookmarkFolders, "lastBookmarkFolder");
 
-    // Get current tab info
-    const [tab] = await chrome.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (tab) {
-      bookmarkTitle.textContent = tab.title || "Untitled";
-      bookmarkUrl.textContent = tab.url || "";
-      if (tab.favIconUrl) {
-        bookmarkFavicon.src = tab.favIconUrl;
+    if (activeTab) {
+      bookmarkTitle.textContent = activeTab.title || "Untitled";
+      bookmarkUrl.textContent = activeTab.url || "";
+      if (activeTab.favIconUrl) {
+        bookmarkFavicon.src = activeTab.favIconUrl;
       } else {
         bookmarkFavicon.style.display = "none";
       }

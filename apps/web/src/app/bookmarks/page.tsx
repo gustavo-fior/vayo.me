@@ -19,12 +19,20 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTheme } from "next-themes";
-import { getLastFolderId, saveLastFolderId } from "@/utils/local-storage";
+import {
+  getLastFolderId,
+  getShowMonthsPreference,
+  getShowOgImagePreference,
+  saveLastFolderId,
+  saveShowMonthsPreference,
+  saveShowOgImagePreference,
+} from "@/utils/local-storage";
 import { capitalizeFirstLetter } from "@/utils/capitalize-first-letter";
 import { getCommonFavicons, getWebsiteName } from "@/utils/get-common-favicons";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Shortcut } from "@/components/ui/shortcut";
+import { isEditableElement } from "@/utils/is-editable-element";
 import {
   CanvasFolderView,
   useCanvasControls,
@@ -48,8 +56,8 @@ export default function Bookmarks() {
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, setTheme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [showMonths, setShowMonths] = useState(false);
-  const [showOgImage, setShowOgImage] = useState(false);
+  const [showMonths, setShowMonths] = useState(getShowMonthsPreference);
+  const [showOgImage, setShowOgImage] = useState(getShowOgImagePreference);
   const [isInvalidUrl, setIsInvalidUrl] = useState(false);
   const [isBookmarkAdded, setIsBookmarkAdded] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
@@ -253,8 +261,52 @@ export default function Bookmarks() {
     })
   );
 
-  useHotkeys("v", () => setShowOgImage(!showOgImage));
-  useHotkeys("m", () => setShowMonths(!showMonths));
+  const showInvalidBookmarkInput = useCallback(() => {
+    setIsInvalidUrl(true);
+    setTimeout(() => {
+      setIsInvalidUrl(false);
+    }, 2000);
+  }, []);
+
+  const submitBookmarkValue = useCallback(
+    (rawValue: string) => {
+      const value = rawValue.trim();
+
+      if (!selectedFolder || isCanvasFolder || !value) {
+        return false;
+      }
+
+      if (isValidColor(value)) {
+        setUrl("");
+        createColorBookmark.mutate({
+          color: value,
+          folderId: selectedFolder.id,
+        });
+        return true;
+      }
+
+      if (isValidURL(value)) {
+        setUrl("");
+        createBookmark.mutate({
+          url: addHttpIfMissing(value),
+          folderId: selectedFolder.id,
+        });
+        return true;
+      }
+
+      return false;
+    },
+    [
+      selectedFolder,
+      isCanvasFolder,
+      createColorBookmark,
+      createBookmark,
+      setUrl,
+    ]
+  );
+
+  useHotkeys("v", () => setShowOgImage((current) => !current));
+  useHotkeys("m", () => setShowMonths((current) => !current));
   useHotkeys("t", () => setTheme(theme === "dark" ? "light" : "dark"));
   useHotkeys("w", () => {
     if (isCanvasFolder) canvasControls.setFullWidth(!canvasControls.fullWidth);
@@ -311,6 +363,14 @@ export default function Bookmarks() {
     }
   }, [selectedFolder?.id]);
 
+  useEffect(() => {
+    saveShowMonthsPreference(showMonths);
+  }, [showMonths]);
+
+  useEffect(() => {
+    saveShowOgImagePreference(showOgImage);
+  }, [showOgImage]);
+
   // Debounced search effect
   useEffect(() => {
     // Clear existing timeout
@@ -330,6 +390,33 @@ export default function Bookmarks() {
       }
     };
   }, [url]);
+
+  useEffect(() => {
+    if (!selectedFolder || isCanvasFolder) {
+      return;
+    }
+
+    const handleWindowPaste = (event: ClipboardEvent) => {
+      if (event.defaultPrevented || isEditableElement(event.target)) {
+        return;
+      }
+
+      const pastedText = event.clipboardData?.getData("text")?.trim();
+      if (!pastedText) {
+        return;
+      }
+
+      if (!isValidColor(pastedText) && !isValidURL(pastedText)) {
+        return;
+      }
+
+      event.preventDefault();
+      submitBookmarkValue(pastedText);
+    };
+
+    window.addEventListener("paste", handleWindowPaste);
+    return () => window.removeEventListener("paste", handleWindowPaste);
+  }, [selectedFolder?.id, isCanvasFolder, submitBookmarkValue]);
 
   // Memoized filtered bookmarks for performance
   const filteredAndGroupedBookmarks = useMemo(() => {
@@ -426,55 +513,21 @@ export default function Bookmarks() {
                     onChange={(e) => setUrl(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        if (isValidColor(url)) {
-                          const color = url.trim();
-                          setUrl("");
-                          createColorBookmark.mutate({
-                            color,
-                            folderId: selectedFolder!.id!,
-                          });
-                        } else if (isValidURL(url)) {
-                          setUrl("");
-                          createBookmark.mutate({
-                            url: addHttpIfMissing(url),
-                            folderId: selectedFolder!.id!,
-                          });
-                        } else {
-                          setIsInvalidUrl(true);
-                          setTimeout(() => {
-                            setIsInvalidUrl(false);
-                          }, 2000);
+                        if (!submitBookmarkValue(url)) {
+                          showInvalidBookmarkInput();
                         }
                       }
                     }}
                     onPaste={(e) => {
                       const pastedText = e.clipboardData.getData("text");
-                      if (isValidColor(pastedText)) {
+                      if (!pastedText.trim()) {
+                        return;
+                      }
+
+                      if (submitBookmarkValue(pastedText)) {
                         e.preventDefault();
-                        const color = pastedText.trim();
-                        setUrl(color);
-                        setTimeout(() => {
-                          createColorBookmark.mutate({
-                            color,
-                            folderId: selectedFolder!.id!,
-                          });
-                          setUrl("");
-                        }, 0);
-                      } else if (isValidURL(pastedText)) {
-                        e.preventDefault();
-                        setUrl(pastedText);
-                        setTimeout(() => {
-                          createBookmark.mutate({
-                            url: addHttpIfMissing(pastedText),
-                            folderId: selectedFolder!.id!,
-                          });
-                          setUrl("");
-                        }, 0);
                       } else {
-                        setIsInvalidUrl(true);
-                        setTimeout(() => {
-                          setIsInvalidUrl(false);
-                        }, 2000);
+                        showInvalidBookmarkInput();
                       }
                     }}
                   />

@@ -150,18 +150,26 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
+chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "PING") {
+    sendResponse({ type: "PONG" });
+  }
+});
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "add-to-vayo" && info.srcUrl) {
     const assetType = info.mediaType === "video" ? "video" : "image";
+    const sourcePageUrl = info.pageUrl ?? tab?.url ?? null;
     await chrome.storage.local.remove("pendingTweetAssets");
     await chrome.storage.local.set({
-      pendingAsset: { url: info.srcUrl, assetType },
+      pendingAsset: { url: info.srcUrl, assetType, sourcePageUrl },
     });
     await openPopup();
     return;
   }
 
   if (info.menuItemId === "save-tweet-assets" && tab?.id) {
+    const sourcePageUrl = info.pageUrl ?? tab.url ?? null;
     await chrome.storage.local.remove("pendingAsset");
     try {
       const response = await sendToContentScript(tab.id, {
@@ -170,7 +178,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       if (response?.error) {
         await chrome.storage.local.set({
-          pendingTweetAssets: { error: response.error },
+          pendingTweetAssets: { error: response.error, sourcePageUrl },
         });
       } else if (response?.assets !== undefined) {
         const assets: { url: string; assetType: "image" | "video" }[] = [
@@ -187,22 +195,29 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
         if (assets.length === 0) {
           await chrome.storage.local.set({
-            pendingTweetAssets: { error: "No media found in this tweet." },
+            pendingTweetAssets: {
+              error: "No media found in this tweet.",
+              sourcePageUrl,
+            },
           });
         } else {
           await chrome.storage.local.set({
-            pendingTweetAssets: { assets },
+            pendingTweetAssets: { assets, sourcePageUrl },
           });
         }
       } else {
         await chrome.storage.local.set({
-          pendingTweetAssets: { error: "No response from content script." },
+          pendingTweetAssets: {
+            error: "No response from content script.",
+            sourcePageUrl,
+          },
         });
       }
     } catch {
       await chrome.storage.local.set({
         pendingTweetAssets: {
           error: "Could not connect to page. Try refreshing the page.",
+          sourcePageUrl,
         },
       });
     }

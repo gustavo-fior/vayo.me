@@ -127,10 +127,8 @@ export const bookmarksRouter = router({
         id: bookmarkId,
         title: metadata?.title ?? "Untitled",
         description: metadata?.description ?? null,
-        faviconUrl: metadata?.favicons?.[0]?.href
-          ? new URL(metadata.favicons[0].href, input.url).toString()
-          : null,
-        ogImageUrl: metadata?.["og:image"] ?? null,
+        faviconUrl: metadata?.faviconUrl ?? null,
+        ogImageUrl: metadata?.ogImageUrl ?? null,
       };
       console.log(`[${new Date().toISOString()}] Bookmark data processed`);
 

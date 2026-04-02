@@ -90,7 +90,7 @@ export const SelectFolder = ({
         side="bottom"
         sideOffset={4}
         alignOffset={8}
-        className="min-w-56"
+        className="min-w-56 max-w-auto"
       >
         {folders?.map((folder, index) => (
           <SelectItem
