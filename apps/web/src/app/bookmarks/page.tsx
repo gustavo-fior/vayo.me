@@ -1,14 +1,24 @@
 "use client";
 
 import { Bookmark } from "@/components/bookmark";
+import type { CanvasAssetType } from "@/components/canvas/asset-card";
 import { EmptyState } from "@/components/empty-state";
 import { CreateFirstFolder } from "@/components/folders/create-first-folder";
 import { SelectFolder } from "@/components/folders/select-folder";
 import ShareFolder from "@/components/folders/share-folder";
 import { Input } from "@/components/ui/input";
+import { UndoToast } from "@/components/ui/undo-toast";
 import UserMenu from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 import { groupBookmarksByMonth } from "@/utils/get-bookmarks-by-month";
+import {
+  deriveVisibleBookmarks,
+  getPendingItemIds,
+  type BookmarkRecord,
+  type PendingAssetAction,
+  type PendingBookmarkAction,
+  type PendingFolderAction,
+} from "@/utils/folder-pending-actions";
 import { queryClient, trpc, trpcClient } from "@/utils/trpc";
 import { addHttpIfMissing, isValidURL } from "@/utils/url-validator";
 import { isValidColor } from "@/utils/color-validator";
@@ -50,6 +60,20 @@ export type Folder = {
   totalItems: number;
 };
 
+const UNDO_WINDOW_MS = 5000;
+
+function isBookmarkPendingAction(
+  action: PendingFolderAction
+): action is PendingBookmarkAction {
+  return action.entity === "bookmark";
+}
+
+function isAssetPendingAction(
+  action: PendingFolderAction
+): action is PendingAssetAction {
+  return action.entity === "asset";
+}
+
 export default function Bookmarks() {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -61,7 +85,12 @@ export default function Bookmarks() {
   const [isInvalidUrl, setIsInvalidUrl] = useState(false);
   const [isBookmarkAdded, setIsBookmarkAdded] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
+  const [pendingActions, setPendingActions] = useState<PendingFolderAction[]>(
+    []
+  );
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingActionTimersRef = useRef<Map<string, number>>(new Map());
+  const pendingActionsRef = useRef<PendingFolderAction[]>([]);
   const { data: session, isPending: isSessionPending } =
     authClient.useSession();
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -84,7 +113,7 @@ export default function Bookmarks() {
       // If the last page has less than 30 items (PAGE_SIZE), we've reached the end
       return lastPage.length === 30 ? allPages.length + 1 : undefined;
     },
-    enabled: !!selectedFolder?.id,
+    enabled: !!selectedFolder?.id && !isCanvasFolder,
   });
 
   const lastBookmarkElementRef = useCallback(
@@ -129,6 +158,8 @@ export default function Bookmarks() {
         const optimisticBookmark = {
           id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID
           url,
+          type: "link" as const,
+          color: null,
           title: capitalizeFirstLetter(getWebsiteName(url)), // Placeholder title
           description: null,
           faviconUrl: getCommonFavicons(url) ?? null,
@@ -259,6 +290,306 @@ export default function Bookmarks() {
         });
       },
     })
+  );
+
+  const deleteBookmark = useMutation(
+    trpc.bookmarks.deleteBookmark.mutationOptions({})
+  );
+
+  const moveBookmarkToFolder = useMutation(
+    trpc.bookmarks.moveBookmarkToFolder.mutationOptions({})
+  );
+
+  const deleteAsset = useMutation(
+    trpc.canvasAssets.deleteAsset.mutationOptions({})
+  );
+
+  const moveAssetToFolder = useMutation(
+    trpc.canvasAssets.moveAssetToFolder.mutationOptions({})
+  );
+
+  useEffect(() => {
+    pendingActionsRef.current = pendingActions;
+  }, [pendingActions]);
+
+  useEffect(() => {
+    return () => {
+      pendingActionTimersRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      pendingActionTimersRef.current.clear();
+    };
+  }, []);
+
+  const clearPendingActionTimer = useCallback((actionId: string) => {
+    const timeoutId = pendingActionTimersRef.current.get(actionId);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      pendingActionTimersRef.current.delete(actionId);
+    }
+  }, []);
+
+  const removePendingAction = useCallback(
+    (actionId: string) => {
+      clearPendingActionTimer(actionId);
+      setPendingActions((currentActions) =>
+        currentActions.filter((action) => action.id !== actionId)
+      );
+    },
+    [clearPendingActionTimer]
+  );
+
+  const undoPendingAction = useCallback(
+    (actionId: string) => {
+      toast.dismiss(actionId);
+      removePendingAction(actionId);
+    },
+    [removePendingAction]
+  );
+
+  const invalidateBookmarkFolders = useCallback(
+    async (folderIds: Array<string | undefined>) => {
+      const uniqueFolderIds = Array.from(
+        new Set(folderIds.filter(Boolean) as string[])
+      );
+
+      await Promise.all([
+        ...uniqueFolderIds.map((folderId) =>
+          queryClient.invalidateQueries({
+            queryKey: ["bookmarks", "getBookmarksByFolderId", folderId],
+          })
+        ),
+        queryClient.invalidateQueries({
+          queryKey: ["folders", "getFolders"],
+        }),
+      ]);
+    },
+    []
+  );
+
+  const invalidateCanvasFolders = useCallback(
+    async (folderIds: Array<string | undefined>) => {
+      const uniqueFolderIds = Array.from(
+        new Set(folderIds.filter(Boolean) as string[])
+      );
+
+      await Promise.all([
+        ...uniqueFolderIds.map((folderId) =>
+          queryClient.invalidateQueries({
+            queryKey: ["canvasAssets", "getAssetsByFolderId", folderId],
+          })
+        ),
+        queryClient.invalidateQueries({
+          queryKey: ["folders", "getFolders"],
+        }),
+      ]);
+    },
+    []
+  );
+
+  const getPendingActionMessage = useCallback((action: PendingFolderAction) => {
+    if (action.entity === "bookmark") {
+      return action.operation === "delete"
+        ? "Bookmark deleted"
+        : "Bookmark moved";
+    }
+
+    return action.operation === "delete" ? "Asset deleted" : "Asset moved";
+  }, []);
+
+  const getPendingActionErrorMessage = useCallback(
+    (action: PendingFolderAction) => {
+      if (action.entity === "bookmark") {
+        return action.operation === "delete"
+          ? "Failed to delete bookmark"
+          : "Failed to move bookmark";
+      }
+
+      return action.operation === "delete"
+        ? "Failed to delete asset"
+        : "Failed to move asset";
+    },
+    []
+  );
+
+  const commitPendingAction = useCallback(
+    async (actionId: string) => {
+      const action = pendingActionsRef.current.find(
+        (currentAction) => currentAction.id === actionId
+      );
+
+      if (!action) {
+        return;
+      }
+
+      clearPendingActionTimer(actionId);
+      setPendingActions((currentActions) =>
+        currentActions.map((currentAction) =>
+          currentAction.id === actionId
+            ? { ...currentAction, status: "committing" as const }
+            : currentAction
+        )
+      );
+
+      try {
+        if (action.entity === "bookmark") {
+          if (action.operation === "delete") {
+            await deleteBookmark.mutateAsync(action.item.id);
+          } else if (action.targetFolderId) {
+            await moveBookmarkToFolder.mutateAsync({
+              bookmarkId: action.item.id,
+              folderId: action.targetFolderId,
+            });
+          }
+
+          await invalidateBookmarkFolders([
+            action.sourceFolderId,
+            action.targetFolderId,
+          ]);
+          removePendingAction(actionId);
+          return;
+        }
+
+        if (action.operation === "delete") {
+          await deleteAsset.mutateAsync(action.item.id);
+        } else if (action.targetFolderId) {
+          await moveAssetToFolder.mutateAsync({
+            assetId: action.item.id,
+            folderId: action.targetFolderId,
+          });
+        }
+
+        await invalidateCanvasFolders([
+          action.sourceFolderId,
+          action.targetFolderId,
+        ]);
+        removePendingAction(actionId);
+      } catch {
+        removePendingAction(actionId);
+
+        if (action.entity === "bookmark") {
+          await invalidateBookmarkFolders([
+            action.sourceFolderId,
+            action.targetFolderId,
+          ]);
+        } else {
+          await invalidateCanvasFolders([
+            action.sourceFolderId,
+            action.targetFolderId,
+          ]);
+        }
+
+        toast.error(getPendingActionErrorMessage(action));
+      }
+    },
+    [
+      clearPendingActionTimer,
+      deleteAsset,
+      deleteBookmark,
+      getPendingActionErrorMessage,
+      invalidateBookmarkFolders,
+      invalidateCanvasFolders,
+      moveAssetToFolder,
+      moveBookmarkToFolder,
+      removePendingAction,
+    ]
+  );
+
+  const stagePendingAction = useCallback(
+    (action: Omit<PendingFolderAction, "stagedAt" | "status">) => {
+      const isAlreadyPending = pendingActionsRef.current.some(
+        (currentAction) =>
+          currentAction.entity === action.entity &&
+          currentAction.item.id === action.item.id
+      );
+
+      if (isAlreadyPending) {
+        return;
+      }
+
+      const nextAction: PendingFolderAction = {
+        ...action,
+        stagedAt: Date.now(),
+        status: "pending",
+      } as PendingFolderAction;
+
+      setPendingActions((currentActions) => [...currentActions, nextAction]);
+
+      toast.custom(
+        () => (
+          <UndoToast
+            message={getPendingActionMessage(nextAction)}
+            onUndo={() => undoPendingAction(nextAction.id)}
+          />
+        ),
+        {
+          id: nextAction.id,
+          duration: UNDO_WINDOW_MS,
+          position: nextAction.entity === "asset" ? "top-center" : undefined,
+        }
+      );
+
+      const timeoutId = window.setTimeout(() => {
+        void commitPendingAction(nextAction.id);
+      }, UNDO_WINDOW_MS);
+
+      pendingActionTimersRef.current.set(nextAction.id, timeoutId);
+    },
+    [commitPendingAction, getPendingActionMessage, undoPendingAction]
+  );
+
+  const stageBookmarkDelete = useCallback(
+    (bookmark: BookmarkRecord) => {
+      stagePendingAction({
+        id: crypto.randomUUID(),
+        entity: "bookmark",
+        operation: "delete",
+        item: bookmark,
+        sourceFolderId: bookmark.folderId,
+      });
+    },
+    [stagePendingAction]
+  );
+
+  const stageBookmarkMove = useCallback(
+    (bookmark: BookmarkRecord, folderId: string) => {
+      stagePendingAction({
+        id: crypto.randomUUID(),
+        entity: "bookmark",
+        operation: "move",
+        item: bookmark,
+        sourceFolderId: bookmark.folderId,
+        targetFolderId: folderId,
+      });
+    },
+    [stagePendingAction]
+  );
+
+  const stageAssetDelete = useCallback(
+    (asset: CanvasAssetType) => {
+      stagePendingAction({
+        id: crypto.randomUUID(),
+        entity: "asset",
+        operation: "delete",
+        item: asset,
+        sourceFolderId: asset.folderId,
+      });
+    },
+    [stagePendingAction]
+  );
+
+  const stageAssetMove = useCallback(
+    (asset: CanvasAssetType, folderId: string) => {
+      stagePendingAction({
+        id: crypto.randomUUID(),
+        entity: "asset",
+        operation: "move",
+        item: asset,
+        sourceFolderId: asset.folderId,
+        targetFolderId: folderId,
+      });
+    },
+    [stagePendingAction]
   );
 
   const showInvalidBookmarkInput = useCallback(() => {
@@ -418,29 +749,68 @@ export default function Bookmarks() {
     return () => window.removeEventListener("paste", handleWindowPaste);
   }, [selectedFolder?.id, isCanvasFolder, submitBookmarkValue]);
 
+  const currentBookmarkActions = useMemo(
+    () =>
+      selectedFolder?.id
+        ? pendingActions.filter(
+            (action): action is PendingBookmarkAction =>
+              isBookmarkPendingAction(action) &&
+              (action.sourceFolderId === selectedFolder.id ||
+                action.targetFolderId === selectedFolder.id)
+          )
+        : [],
+    [pendingActions, selectedFolder?.id]
+  );
+
+  const currentAssetActions = useMemo(
+    () =>
+      selectedFolder?.id
+        ? pendingActions.filter(
+            (action): action is PendingAssetAction =>
+              isAssetPendingAction(action) &&
+              (action.sourceFolderId === selectedFolder.id ||
+                action.targetFolderId === selectedFolder.id)
+          )
+        : [],
+    [pendingActions, selectedFolder?.id]
+  );
+
+  const visibleBookmarks = useMemo(() => {
+    if (!selectedFolder?.id) {
+      return [];
+    }
+
+    return deriveVisibleBookmarks(
+      (bookmarks.data?.pages.flat() ?? []) as BookmarkRecord[],
+      selectedFolder.id,
+      currentBookmarkActions
+    );
+  }, [bookmarks.data, currentBookmarkActions, selectedFolder?.id]);
+
+  const pendingBookmarkIds = useMemo(
+    () =>
+      selectedFolder?.id
+        ? getPendingItemIds(currentBookmarkActions, selectedFolder.id)
+        : new Set<string>(),
+    [currentBookmarkActions, selectedFolder?.id]
+  );
+
   // Memoized filtered bookmarks for performance
   const filteredAndGroupedBookmarks = useMemo(() => {
-    if (!bookmarks.data) return [];
-
-    // Flatten all pages into a single array for grouping
-    const allBookmarks = bookmarks.data.pages.flat();
-
     const filteredBookmarks = searchQuery
-      ? allBookmarks.filter(
+      ? visibleBookmarks.filter(
           (bookmark) =>
             bookmark.url?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             bookmark.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             bookmark.description
               ?.toLowerCase()
               .includes(searchQuery.toLowerCase()) ||
-            bookmark.color
-              ?.toLowerCase()
-              .includes(searchQuery.toLowerCase())
+            bookmark.color?.toLowerCase().includes(searchQuery.toLowerCase())
         )
-      : allBookmarks;
+      : visibleBookmarks;
 
     return groupBookmarksByMonth(filteredBookmarks);
-  }, [bookmarks.data, searchQuery]);
+  }, [searchQuery, visibleBookmarks]);
 
   useEffect(() => {
     if (!session?.user && !isSessionPending) {
@@ -495,6 +865,9 @@ export default function Bookmarks() {
               folderId={selectedFolder.id}
               canvasControls={canvasControls}
               folders={folders.data ?? []}
+              pendingActions={currentAssetActions}
+              onDeleteAsset={stageAssetDelete}
+              onMoveAsset={stageAssetMove}
             />
           ) : (
             <>
@@ -503,6 +876,7 @@ export default function Bookmarks() {
                   <Input
                     placeholder="https://"
                     className={cn(
+                      "dark:bg-neutral-900",
                       isBookmarkAdded &&
                         "focus-visible:border-green-400 rounded-md focus-visible:ring-green-400/20 focus-visible:ring-2 dark:focus-visible:border-green-600 dark:focus-visible:ring-green-600/20",
                       isInvalidUrl &&
@@ -626,9 +1000,7 @@ export default function Bookmarks() {
               {bookmarks.isSuccess &&
                 folders.data &&
                 folders.data.length > 0 &&
-                bookmarks.data?.pages.every(
-                  (page: any[]) => page.length === 0
-                ) && (
+                visibleBookmarks.length === 0 && (
                   <div className="mt-24">
                     <EmptyState
                       title="No bookmarks here"
@@ -638,55 +1010,53 @@ export default function Bookmarks() {
                   </div>
                 )}
 
-              {bookmarks.data &&
-                filteredAndGroupedBookmarks.map(
-                  ([month, monthBookmarks], monthIndex) => {
-                    return (
-                      <div key={month} className="space-y-2">
-                        {showMonths && (
-                          <h2 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8">
-                            {month}
-                          </h2>
-                        )}
-                        <div>
-                          {monthBookmarks.map(
-                            (bookmark: any, bookmarkIndex: number) => {
-                              const isLastMonth =
-                                monthIndex ===
-                                filteredAndGroupedBookmarks.length - 1;
-                              const isLastBookmarkInMonth =
-                                bookmarkIndex === monthBookmarks.length - 1;
-                              const isLastBookmark =
-                                isLastMonth && isLastBookmarkInMonth;
+              {filteredAndGroupedBookmarks.map(
+                ([month, monthBookmarks], monthIndex) => {
+                  return (
+                    <div key={month} className="space-y-2">
+                      {showMonths && (
+                        <h2 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8">
+                          {month}
+                        </h2>
+                      )}
+                      <div>
+                        {monthBookmarks.map(
+                          (bookmark: any, bookmarkIndex: number) => {
+                            const isLastMonth =
+                              monthIndex ===
+                              filteredAndGroupedBookmarks.length - 1;
+                            const isLastBookmarkInMonth =
+                              bookmarkIndex === monthBookmarks.length - 1;
+                            const isLastBookmark =
+                              isLastMonth && isLastBookmarkInMonth;
 
-                              return (
-                                <div
-                                  key={bookmark.id}
-                                  ref={
-                                    isLastBookmark
-                                      ? lastBookmarkElementRef
-                                      : null
-                                  }
-                                >
-                                  <Bookmark
-                                    bookmark={{
-                                      ...bookmark,
-                                      createdAt: new Date(bookmark.createdAt),
-                                      updatedAt: new Date(bookmark.updatedAt),
-                                    }}
-                                    showOgImage={showOgImage}
-                                    isPublicPage={false}
-                                    folders={folders.data ?? []}
-                                  />
-                                </div>
-                              );
-                            }
-                          )}
-                        </div>
+                            return (
+                              <div
+                                key={bookmark.id}
+                                ref={
+                                  isLastBookmark ? lastBookmarkElementRef : null
+                                }
+                              >
+                                <Bookmark
+                                  bookmark={bookmark}
+                                  showOgImage={showOgImage}
+                                  isPublicPage={false}
+                                  folders={folders.data ?? []}
+                                  onDelete={stageBookmarkDelete}
+                                  onMove={stageBookmarkMove}
+                                  isActionPending={pendingBookmarkIds.has(
+                                    bookmark.id
+                                  )}
+                                />
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
-                    );
-                  }
-                )}
+                    </div>
+                  );
+                }
+              )}
             </>
           )}
         </div>

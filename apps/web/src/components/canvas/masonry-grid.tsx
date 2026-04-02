@@ -16,6 +16,7 @@ export function MasonryGrid({
   onReorder,
   onPreview,
   isPublic = false,
+  pendingAssetIds,
 }: {
   assets: CanvasAssetType[];
   columns: number;
@@ -23,11 +24,12 @@ export function MasonryGrid({
   rounded?: boolean;
   folderId?: string;
   folders?: Folder[];
-  onDelete?: (id: string) => void;
-  onMove?: (assetId: string, folderId: string) => void;
+  onDelete?: (asset: CanvasAssetType) => void;
+  onMove?: (asset: CanvasAssetType, folderId: string) => void;
   onReorder?: (reorderedAssets: CanvasAssetType[]) => void;
   onPreview?: (asset: CanvasAssetType) => void;
   isPublic?: boolean;
+  pendingAssetIds?: Set<string>;
 }) {
   // Local copy of assets for stable reordering without flicker
   const [localAssets, setLocalAssets] = useState(assets);
@@ -153,6 +155,7 @@ export function MasonryGrid({
                 onMove={onMove}
                 onPreview={onPreview}
                 isPublic={isPublic}
+                isActionPending={pendingAssetIds?.has(asset.id)}
               />
             </div>
           ))}

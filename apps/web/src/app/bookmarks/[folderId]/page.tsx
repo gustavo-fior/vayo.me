@@ -331,7 +331,6 @@ export default function Bookmarks() {
                           ...bookmark,
                           createdAt: new Date(bookmark.createdAt),
                           updatedAt: new Date(bookmark.updatedAt),
-                          content: null,
                         }}
                         isPublicPage={true}
                         showOgImage={showOgImage}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import type { CanvasAssetType } from "./asset-card";
+import { AssetMedia } from "./asset-media";
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -87,17 +88,19 @@ export function CanvasView({
   onMove,
   onUpdateZIndex,
   onPreview,
+  pendingAssetIds,
 }: {
   assets: CanvasAssetType[];
   folderId?: string;
   folders?: Folder[];
   rounded?: boolean;
-  onDelete?: (id: string) => void;
-  onMove?: (assetId: string, folderId: string) => void;
+  onDelete?: (asset: CanvasAssetType) => void;
+  onMove?: (asset: CanvasAssetType, folderId: string) => void;
   onUpdateZIndex?: (
     updates: Array<{ id: string; canvasZIndex: number }>
   ) => void;
   onPreview?: (asset: CanvasAssetType) => void;
+  pendingAssetIds?: Set<string>;
 }) {
   const canvasFolders = folders.filter(
     (f) => f.type === "canvas" && f.id !== folderId
@@ -439,6 +442,7 @@ export function CanvasView({
       >
         {assets.map((asset, index) => {
           const pos = getAssetPosition(asset, index);
+          const isActionPending = pendingAssetIds?.has(asset.id) ?? false;
           const isSelected = selectedIds.has(asset.id);
           const isFollower =
             multiDragLeaderRef.current !== null &&
@@ -630,23 +634,12 @@ export function CanvasView({
                       }
                     }}
                   >
-                    {asset.assetType === "video" ? (
-                      <video
-                        src={asset.url}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover pointer-events-none"
-                      />
-                    ) : (
-                      <img
-                        src={asset.url}
-                        alt={asset.originalFilename || "Asset"}
-                        className="w-full h-full object-cover pointer-events-none select-none"
-                        draggable={false}
-                      />
-                    )}
+                    <AssetMedia
+                      asset={asset}
+                      rounded={rounded}
+                      className="pointer-events-none"
+                      mediaClassName="select-none"
+                    />
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-44">
@@ -851,7 +844,7 @@ export function CanvasView({
                       </ContextMenuItem>
                     </>
                   )}
-                  {onMove && canvasFolders.length > 0 && (
+                  {onMove && !isActionPending && canvasFolders.length > 0 && (
                     <>
                       <ContextMenuSeparator />
                       <ContextMenuSub>
@@ -866,7 +859,7 @@ export function CanvasView({
                           {canvasFolders.map((folder, index) => (
                             <div key={folder.id}>
                               <ContextMenuItem
-                                onClick={() => onMove(asset.id, folder.id)}
+                                onClick={() => onMove(asset, folder.id)}
                               >
                                 {folder.icon && <span>{folder.icon}</span>}
                                 {folder.name}
@@ -880,13 +873,13 @@ export function CanvasView({
                       </ContextMenuSub>
                     </>
                   )}
-                  {onDelete && (
+                  {onDelete && !isActionPending && (
                     <>
                       <ContextMenuSeparator />
                       <ContextMenuItem
                         className="flex items-center gap-2 hover:text-destructive focus:text-destructive group"
                         disabled={asset._temp}
-                        onClick={() => onDelete(asset.id)}
+                        onClick={() => onDelete(asset)}
                       >
                         <Trash2 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 group-hover:text-destructive/20 group-focus:text-destructive" />
                         Delete

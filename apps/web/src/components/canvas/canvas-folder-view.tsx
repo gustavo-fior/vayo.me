@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, trpc, trpcClient } from "@/utils/trpc";
 import { AssetUploadZone } from "./asset-upload-zone";
@@ -12,11 +12,15 @@ import {
   ChevronRightIcon,
   LayoutPanelLeftIcon,
 } from "lucide-react";
-import { toast } from "sonner";
 import type { CanvasAssetType } from "./asset-card";
 import type { CanvasControls } from "../user-menu";
 import type { Folder } from "@/app/bookmarks/page";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
+import {
+  deriveVisibleAssets,
+  getPendingItemIds,
+  type PendingAssetAction,
+} from "@/utils/folder-pending-actions";
 
 const STORAGE_KEY_COLUMNS = "vayo-canvas-columns";
 const STORAGE_KEY_VIEW = "vayo-canvas-view";
@@ -97,10 +101,16 @@ export function CanvasFolderView({
   folderId,
   canvasControls,
   folders = [],
+  pendingActions = [],
+  onDeleteAsset,
+  onMoveAsset,
 }: {
   folderId: string;
   canvasControls: CanvasControls;
   folders?: Folder[];
+  pendingActions?: PendingAssetAction[];
+  onDeleteAsset?: (asset: CanvasAssetType) => void;
+  onMoveAsset?: (asset: CanvasAssetType, folderId: string) => void;
 }) {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const [previewAsset, setPreviewAsset] = useState<CanvasAssetType | null>(
@@ -122,100 +132,6 @@ export function CanvasFolderView({
     },
     enabled: !!folderId,
   });
-
-  const moveAsset = useMutation(
-    trpc.canvasAssets.moveAssetToFolder.mutationOptions({
-      onMutate: async ({ assetId }) => {
-        await queryClient.cancelQueries({
-          queryKey: ["canvasAssets", "getAssetsByFolderId", folderId],
-        });
-
-        const previous = queryClient.getQueryData([
-          "canvasAssets",
-          "getAssetsByFolderId",
-          folderId,
-        ]);
-
-        queryClient.setQueryData(
-          ["canvasAssets", "getAssetsByFolderId", folderId],
-          (old: any) => {
-            if (!old) return old;
-            return {
-              ...old,
-              pages: old.pages.map((page: any[]) =>
-                page.filter((a: any) => a.id !== assetId)
-              ),
-            };
-          }
-        );
-
-        return { previous };
-      },
-      onError: (_, __, context) => {
-        if (context?.previous) {
-          queryClient.setQueryData(
-            ["canvasAssets", "getAssetsByFolderId", folderId],
-            context.previous
-          );
-        }
-        toast.error("Failed to move asset");
-      },
-      onSettled: () => {
-        queryClient.invalidateQueries({
-          queryKey: ["canvasAssets", "getAssetsByFolderId"],
-        });
-      },
-    })
-  );
-
-  const deleteAsset = useMutation(
-    trpc.canvasAssets.deleteAsset.mutationOptions({
-      onMutate: async (assetId) => {
-        await queryClient.cancelQueries({
-          queryKey: ["canvasAssets", "getAssetsByFolderId", folderId],
-        });
-
-        const previous = queryClient.getQueryData([
-          "canvasAssets",
-          "getAssetsByFolderId",
-          folderId,
-        ]);
-
-        queryClient.setQueryData(
-          ["canvasAssets", "getAssetsByFolderId", folderId],
-          (old: any) => {
-            if (!old) return old;
-            return {
-              ...old,
-              pages: old.pages.map((page: any[]) =>
-                page.filter((a: any) => a.id !== assetId)
-              ),
-            };
-          }
-        );
-
-        return { previous };
-      },
-      onError: (_, __, context) => {
-        if (context?.previous) {
-          queryClient.setQueryData(
-            ["canvasAssets", "getAssetsByFolderId", folderId],
-            context.previous
-          );
-        }
-        toast.error("Failed to delete asset");
-      },
-      onSettled: (_data, error) => {
-        // Only refetch if the delete failed (error case already rolled back above)
-        // Skipping refetch on success avoids flicker since the optimistic update is correct
-        if (error) {
-          queryClient.invalidateQueries({
-            queryKey: ["canvasAssets", "getAssetsByFolderId", folderId],
-          });
-        }
-      },
-    })
-  );
 
   const updateSortOrder = useMutation(
     trpc.canvasAssets.updateSortOrder.mutationOptions({})
@@ -302,22 +218,32 @@ export function CanvasFolderView({
           ? a.updatedAt
           : a.updatedAt.toISOString(),
     })) ?? [];
+  const visibleAssets = useMemo(
+    () => deriveVisibleAssets(allAssets, folderId, pendingActions),
+    [allAssets, folderId, pendingActions]
+  );
+  const pendingAssetIds = useMemo(
+    () => getPendingItemIds(pendingActions, folderId),
+    [pendingActions, folderId]
+  );
 
   const navigatePreview = useCallback(
     (direction: "next" | "previous") => {
-      if (!previewAsset || allAssets.length < 2) return;
+      if (!previewAsset || visibleAssets.length < 2) return;
 
-      const idx = allAssets.findIndex((a) => a.id === previewAsset.id);
+      const idx = visibleAssets.findIndex((a) => a.id === previewAsset.id);
       if (idx === -1) return;
 
       const nextAsset =
         direction === "next"
-          ? allAssets[(idx + 1) % allAssets.length]
-          : allAssets[(idx - 1 + allAssets.length) % allAssets.length];
+          ? visibleAssets[(idx + 1) % visibleAssets.length]
+          : visibleAssets[
+              (idx - 1 + visibleAssets.length) % visibleAssets.length
+            ];
 
       setPreviewAsset(nextAsset);
     },
-    [previewAsset, allAssets]
+    [previewAsset, visibleAssets]
   );
 
   // Arrow key navigation in lightbox
@@ -334,7 +260,7 @@ export function CanvasFolderView({
 
   const isEmpty =
     assets.isSuccess &&
-    assets.data?.pages.every((page: any[]) => page.length === 0);
+    visibleAssets.length === 0;
 
   return (
     <div className="relative">
@@ -348,38 +274,36 @@ export function CanvasFolderView({
         </div>
       )}
 
-      {viewMode === "masonry" && allAssets.length > 0 && (
+      {viewMode === "masonry" && visibleAssets.length > 0 && (
         <div className="space-y-4 md:pb-48 pb-32">
           <MasonryGrid
-            assets={allAssets}
+            assets={visibleAssets}
             columns={columns}
             moreSpace={moreSpace}
             rounded={rounded}
             folderId={folderId}
             folders={folders}
-            onDelete={(id) => deleteAsset.mutate(id)}
-            onMove={(assetId, targetFolderId) =>
-              moveAsset.mutate({ assetId, folderId: targetFolderId })
-            }
+            onDelete={onDeleteAsset}
+            onMove={onMoveAsset}
             onReorder={handleReorder}
             onPreview={setPreviewAsset}
+            pendingAssetIds={pendingAssetIds}
           />
           <div ref={lastElementRef} className="h-1" />
         </div>
       )}
 
-      {viewMode === "canvas" && allAssets.length > 0 && (
+      {viewMode === "canvas" && visibleAssets.length > 0 && (
         <CanvasView
-          assets={allAssets}
+          assets={visibleAssets}
           folderId={folderId}
           folders={folders}
           rounded={rounded}
-          onDelete={(id) => deleteAsset.mutate(id)}
-          onMove={(assetId, targetFolderId) =>
-            moveAsset.mutate({ assetId, folderId: targetFolderId })
-          }
+          onDelete={onDeleteAsset}
+          onMove={onMoveAsset}
           onUpdateZIndex={(updates) => updateZIndex.mutate(updates)}
           onPreview={setPreviewAsset}
+          pendingAssetIds={pendingAssetIds}
         />
       )}
 
@@ -395,7 +319,7 @@ export function CanvasFolderView({
         >
           <DialogTitle className="sr-only">Asset preview</DialogTitle>
           <div className="flex items-center justify-center gap-3 md:gap-4">
-            {allAssets.length > 1 && previewAsset && (
+            {visibleAssets.length > 1 && previewAsset && (
               <button
                 type="button"
                 aria-label="Previous asset"
@@ -419,7 +343,7 @@ export function CanvasFolderView({
                 className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
               />
             ) : null}
-            {allAssets.length > 1 && previewAsset && (
+            {visibleAssets.length > 1 && previewAsset && (
               <button
                 type="button"
                 aria-label="Next asset"

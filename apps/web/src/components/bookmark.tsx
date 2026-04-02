@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { Folder } from "@/app/bookmarks/page";
 import { formatDate } from "@/utils/format-date";
 import { isValidURL } from "@/utils/url-validator";
+import type { BookmarkRecord } from "@/utils/folder-pending-actions";
 import {
   CircleCheckIcon,
   CopyIcon,
@@ -15,10 +16,8 @@ import {
   Pencil,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import type { Bookmark as BookmarkType } from "server/src/trpc/routers/bookmarks";
 import { toast } from "sonner";
 import {
   ContextMenu,
@@ -38,17 +37,24 @@ export const Bookmark = ({
   showOgImage,
   isPublicPage,
   folders,
+  onDelete,
+  onMove,
+  isActionPending = false,
 }: {
-  bookmark: BookmarkType;
+  bookmark: BookmarkRecord;
   showOgImage: boolean;
   isPublicPage: boolean;
   folders: Folder[];
+  onDelete?: (bookmark: BookmarkRecord) => void;
+  onMove?: (bookmark: BookmarkRecord, folderId: string) => void;
+  isActionPending?: boolean;
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const deleteExitTimeoutRef = useRef<number | null>(null);
   const [title, setTitle] = useState(bookmark.title);
-  const [isHovering, setIsHovering] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isFaviconUnavailable, setIsFaviconUnavailable] = useState(false);
+  const [isDeleteExiting, setIsDeleteExiting] = useState(false);
 
   const isColor = bookmark.type === "color";
 
@@ -56,96 +62,29 @@ export const Bookmark = ({
     (folder) => folder.id !== bookmark.folderId && folder.type === "bookmarks"
   );
 
-  const deleteBookmark = useMutation(
-    trpc.bookmarks.deleteBookmark.mutationOptions({
-      onMutate: async (bookmarkId) => {
-        // Cancel any outgoing refetches to avoid conflicts
-        await queryClient.cancelQueries({
-          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-        });
-
-        // Snapshot the previous bookmarks data
-        const previousBookmarks = queryClient.getQueryData([
-          "bookmarks",
-          "getBookmarksByFolderId",
-          bookmark.folderId,
-        ]);
-
-        // Optimistically remove the bookmark from the cache
-        queryClient.setQueryData(
-          ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-          (old: any) => {
-            if (!old) return old;
-
-            // Remove the bookmark from all pages of the infinite query
-            const newPages = old.pages.map((page: any[]) =>
-              page.filter((b: any) => b.id !== bookmarkId)
-            );
-
-            return {
-              ...old,
-              pages: newPages,
-            };
-          }
-        );
-
-        // Return context for rollback
-        return { previousBookmarks };
-      },
-      onError: (_, __, context) => {
-        // Rollback to previous state on error
-        if (context?.previousBookmarks) {
-          queryClient.setQueryData(
-            ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-            context.previousBookmarks
-          );
-        }
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-        });
-
-        toast.custom(() => (
-          <div className="flex justify-center mx-auto">
-            <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-5 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-              <CircleCheckIcon
-                className="size-3.5 text-green-400 dark:text-green-600"
-                strokeWidth={2.2}
-              />
-              <h1>Bookmark deleted</h1>
-            </div>
-          </div>
-        ));
-      },
-    })
-  );
-
   const updateTitle = useMutation(
     trpc.bookmarks.updateTitle.mutationOptions({
       onMutate: async ({ id, title: newTitle }) => {
-        // Cancel any outgoing refetches to avoid conflicts
         await queryClient.cancelQueries({
           queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
         });
 
-        // Snapshot the previous bookmarks data
         const previousBookmarks = queryClient.getQueryData([
           "bookmarks",
           "getBookmarksByFolderId",
           bookmark.folderId,
         ]);
 
-        // Optimistically update the bookmark title in the cache
         queryClient.setQueryData(
           ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
           (old: any) => {
             if (!old) return old;
 
-            // Update the title in all pages of the infinite query
             const newPages = old.pages.map((page: any[]) =>
-              page.map((b: any) =>
-                b.id === id ? { ...b, title: newTitle } : b
+              page.map((currentBookmark: any) =>
+                currentBookmark.id === id
+                  ? { ...currentBookmark, title: newTitle }
+                  : currentBookmark
               )
             );
 
@@ -156,18 +95,15 @@ export const Bookmark = ({
           }
         );
 
-        // Return context for rollback
         return { previousBookmarks };
       },
       onError: (_, __, context) => {
-        // Rollback to previous state on error
         if (context?.previousBookmarks) {
           queryClient.setQueryData(
             ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
             context.previousBookmarks
           );
         }
-        // Reset local title state to original value
         setTitle(bookmark.title);
       },
       onSuccess: () => {
@@ -189,74 +125,57 @@ export const Bookmark = ({
     })
   );
 
-  const moveBookmarkToFolder = useMutation(
-    trpc.bookmarks.moveBookmarkToFolder.mutationOptions({
-      onMutate: async ({ bookmarkId, folderId: newFolderId }) => {
-        // Cancel any outgoing refetches to avoid conflicts
-        await queryClient.cancelQueries({
-          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-        });
-
-        // Snapshot the previous bookmarks data
-        const previousBookmarks = queryClient.getQueryData([
-          "bookmarks",
-          "getBookmarksByFolderId",
-          bookmark.folderId,
-        ]);
-
-        // Optimistically remove the bookmark from the current folder
-        queryClient.setQueryData(
-          ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-          (old: any) => {
-            if (!old) return old;
-
-            // Remove the bookmark from all pages of the infinite query
-            const newPages = old.pages.map((page: any[]) =>
-              page.filter((b: any) => b.id !== bookmarkId)
-            );
-
-            return {
-              ...old,
-              pages: newPages,
-            };
-          }
-        );
-
-        // Return context for rollback
-        return { previousBookmarks, originalFolderId: bookmark.folderId };
-      },
-      onError: (_, __, context) => {
-        // Rollback to previous state on error
-        if (context?.previousBookmarks) {
-          queryClient.setQueryData(
-            ["bookmarks", "getBookmarksByFolderId", context.originalFolderId],
-            context.previousBookmarks
-          );
-        }
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-        });
-      },
-    })
-  );
-
   useEffect(() => {
     if (isEditingTitle && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [isEditingTitle, inputRef.current]);
+  }, [isEditingTitle]);
+
+  useEffect(() => {
+    setTitle(bookmark.title);
+  }, [bookmark.id, bookmark.title]);
+
+  useEffect(() => {
+    return () => {
+      if (deleteExitTimeoutRef.current) {
+        window.clearTimeout(deleteExitTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handlePointerEnter = () => {
+    if (deleteExitTimeoutRef.current) {
+      window.clearTimeout(deleteExitTimeoutRef.current);
+      deleteExitTimeoutRef.current = null;
+    }
+
+    setIsDeleteExiting(false);
+  };
+
+  const handlePointerLeave = () => {
+    if (deleteExitTimeoutRef.current) {
+      window.clearTimeout(deleteExitTimeoutRef.current);
+    }
+
+    setIsDeleteExiting(true);
+
+    deleteExitTimeoutRef.current = window.setTimeout(() => {
+      setIsDeleteExiting(false);
+      deleteExitTimeoutRef.current = null;
+    }, 160);
+  };
 
   return (
     <ContextMenu>
       <ContextMenuTrigger>
         <div
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
-          className={`flex items-center justify-between md:px-2.5 px-1.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-800 rounded-sm ${
+          className={`group flex items-center justify-between md:px-2.5 px-1.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-800 rounded-sm ${
             showOgImage ? "h-16" : "h-12"
-          } ${isEditingTitle ? "cursor-default" : "cursor-pointer"}`}
+          } ${isEditingTitle ? "cursor-default" : "cursor-pointer"} ${
+            isActionPending ? "opacity-70" : ""
+          }`}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
           onClick={() => {
             if (isEditingTitle) {
               return;
@@ -353,7 +272,7 @@ export const Bookmark = ({
                       setIsEditingTitle(false);
                       updateTitle.mutate({
                         id: bookmark.id,
-                        title: title,
+                        title,
                       });
                     }}
                     onKeyDown={(e) => {
@@ -361,12 +280,12 @@ export const Bookmark = ({
                         setIsEditingTitle(false);
                         updateTitle.mutate({
                           id: bookmark.id,
-                          title: title,
+                          title,
                         });
                       }
                       if (e.key === "Escape") {
                         setIsEditingTitle(false);
-                        setTitle(bookmark.title); // Reset to original title
+                        setTitle(bookmark.title);
                       }
                     }}
                     autoFocus
@@ -432,33 +351,34 @@ export const Bookmark = ({
             </div>
           </div>
           {!isPublicPage && (
-            <AnimatePresence mode="popLayout">
-              {isHovering ? (
-                <motion.button
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="z-10 cursor-pointer hover:text-destructive px-2 hover:bg-destructive/5 dark:hover:bg-destructive/5 rounded-sm h-8 text-muted-foreground/70 transition-colors"
+            <div className="relative hidden min-w-20 justify-end md:flex">
+              <span
+                className={`text-xs dark:text-muted-foreground/30 text-muted-foreground/50 tabular-nums text-right transition-all duration-170 ${
+                  isActionPending
+                    ? "opacity-100"
+                    : "translate-x-0 opacity-100 blur-0 group-hover:translate-x-2 group-hover:opacity-0 group-hover:blur-[4px] group-focus-within:translate-x-2 group-focus-within:opacity-0 group-focus-within:blur-[4px]"
+                }`}
+              >
+                {formatDate(new Date(bookmark.createdAt))}
+              </span>
+              {!isActionPending && onDelete && (
+                <button
+                  type="button"
+                  aria-label="Delete bookmark"
+                  className="absolute right-0 top-1/2 z-10 flex h-8 -translate-y-1/2 translate-x-2 cursor-pointer items-center rounded-sm px-2 text-neutral-500 dark:text-neutral-400 opacity-0 pointer-events-none transition-all duration-150 hover:bg-destructive/5 hover:text-destructive group-hover:translate-x-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto dark:hover:bg-destructive/5"
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteBookmark.mutate(bookmark.id);
+                    onDelete(bookmark);
                   }}
                 >
-                  <X className="size-3.5 stroke-[1.5]" />
-                </motion.button>
-              ) : (
-                <motion.span
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="text-xs text-muted-foreground/50 hidden md:block tabular-nums min-w-20 text-right"
-                >
-                  {formatDate(new Date(bookmark.createdAt))}
-                </motion.span>
+                  <X
+                    className={`size-3.5 stroke-[1.5] transition-[filter] duration-150 ${
+                      isDeleteExiting ? "blur-[2px]" : "blur-0"
+                    }`}
+                  />
+                </button>
               )}
-            </AnimatePresence>
+            </div>
           )}
         </div>
       </ContextMenuTrigger>
@@ -504,41 +424,40 @@ export const Bookmark = ({
           )}
           {isColor ? "Copy color" : "Copy link"}
         </ContextMenuItem>
-        {!isPublicPage && filteredFolders.length > 0 && (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuSub>
-              <ContextMenuSubTrigger
-                inset
-                className="justify-start cursor-pointer"
-              >
-                <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
-                Move
-              </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="w-44">
-                {filteredFolders.map((folder, index) => (
-                  <div key={folder.id}>
-                    <ContextMenuItem
-                      key={folder.id}
-                      onClick={() => {
-                        moveBookmarkToFolder.mutate({
-                          bookmarkId: bookmark.id,
-                          folderId: folder.id,
-                        });
-                      }}
-                    >
-                      {folder.icon && <span>{folder.icon}</span>}
-                      {folder.name}
-                    </ContextMenuItem>
-                    {index !== filteredFolders.length - 1 && (
-                      <ContextMenuSeparator />
-                    )}
-                  </div>
-                ))}
-              </ContextMenuSubContent>
-            </ContextMenuSub>
-          </>
-        )}
+        {!isPublicPage &&
+          !isActionPending &&
+          onMove &&
+          filteredFolders.length > 0 && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger
+                  inset
+                  className="justify-start cursor-pointer"
+                >
+                  <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
+                  Move
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-44">
+                  {filteredFolders.map((folder, index) => (
+                    <div key={folder.id}>
+                      <ContextMenuItem
+                        onClick={() => {
+                          onMove(bookmark, folder.id);
+                        }}
+                      >
+                        {folder.icon && <span>{folder.icon}</span>}
+                        {folder.name}
+                      </ContextMenuItem>
+                      {index !== filteredFolders.length - 1 && (
+                        <ContextMenuSeparator />
+                      )}
+                    </div>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+            </>
+          )}
       </ContextMenuContent>
     </ContextMenu>
   );

@@ -19,8 +19,9 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "../ui/context-menu";
-import Image from "next/image";
 import type { Folder } from "@/app/bookmarks/page";
+import { AssetMedia } from "./asset-media";
+import { useEffect, useMemo, useState } from "react";
 
 export type CanvasAssetType = {
   id: string;
@@ -52,43 +53,66 @@ export function AssetCard({
   onMove,
   onPreview,
   isPublic = false,
+  isActionPending = false,
 }: {
   asset: CanvasAssetType;
   rounded?: boolean;
   folderId?: string;
   folders?: Folder[];
-  onDelete?: (id: string) => void;
-  onMove?: (assetId: string, folderId: string) => void;
+  onDelete?: (asset: CanvasAssetType) => void;
+  onMove?: (asset: CanvasAssetType, folderId: string) => void;
   onPreview?: (asset: CanvasAssetType) => void;
   isPublic?: boolean;
+  isActionPending?: boolean;
 }) {
   const canvasFolders = folders.filter(
     (f) => f.type === "canvas" && f.id !== folderId
   );
   const radiusClass = rounded ? "rounded-md" : "rounded-none";
+  const [measuredDimensions, setMeasuredDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
-  const content =
-    asset.assetType === "video" ? (
-      <video
-        src={asset.url}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className={`w-full h-full object-cover ${radiusClass}`}
+  useEffect(() => {
+    setMeasuredDimensions(null);
+  }, [asset.id, asset.url, asset.updatedAt]);
+
+  const aspectRatio = useMemo(() => {
+    if (asset.width && asset.height) {
+      return `${asset.width} / ${asset.height}`;
+    }
+
+    if (measuredDimensions?.width && measuredDimensions.height) {
+      return `${measuredDimensions.width} / ${measuredDimensions.height}`;
+    }
+
+    if (asset.canvasWidth && asset.canvasHeight) {
+      return `${asset.canvasWidth} / ${asset.canvasHeight}`;
+    }
+
+    return "1 / 1";
+  }, [
+    asset.canvasHeight,
+    asset.canvasWidth,
+    asset.height,
+    asset.width,
+    measuredDimensions,
+  ]);
+
+  const content = (
+    <div
+      className={`relative w-full overflow-hidden ${radiusClass}`}
+      style={{ aspectRatio }}
+    >
+      <AssetMedia
+        asset={asset}
+        rounded={rounded}
+        className="absolute inset-0"
+        onDimensions={setMeasuredDimensions}
       />
-    ) : (
-      <Image
-        src={asset.url}
-        alt={asset.originalFilename || "Asset"}
-        width={asset.width ?? 1000}
-        height={asset.height ?? 1000}
-        loading="eager"
-        priority
-        className={`w-full h-full object-cover ${radiusClass}`}
-        unoptimized
-      />
-    );
+    </div>
+  );
 
   if (isPublic) {
     return (
@@ -195,7 +219,7 @@ export function AssetCard({
             </ContextMenuItem>
           </>
         )}
-        {onMove && canvasFolders.length > 0 && (
+        {onMove && !isActionPending && canvasFolders.length > 0 && (
           <>
             <ContextMenuSeparator />
             <ContextMenuSub>
@@ -209,9 +233,7 @@ export function AssetCard({
               <ContextMenuSubContent className="w-44">
                 {canvasFolders.map((folder, index) => (
                   <div key={folder.id}>
-                    <ContextMenuItem
-                      onClick={() => onMove(asset.id, folder.id)}
-                    >
+                    <ContextMenuItem onClick={() => onMove(asset, folder.id)}>
                       {folder.icon && <span>{folder.icon}</span>}
                       {folder.name}
                     </ContextMenuItem>
@@ -224,13 +246,13 @@ export function AssetCard({
             </ContextMenuSub>
           </>
         )}
-        {onDelete && (
+        {onDelete && !isActionPending && (
           <>
             <ContextMenuSeparator />
             <ContextMenuItem
               className="flex items-center gap-2 hover:text-destructive focus:text-destructive group"
               disabled={asset._temp}
-              onClick={() => onDelete(asset.id)}
+              onClick={() => onDelete(asset)}
             >
               <Trash2 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 group-hover:text-destructive/20 group-focus:text-destructive" />
               Delete
