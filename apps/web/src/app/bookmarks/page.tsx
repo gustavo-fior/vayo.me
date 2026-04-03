@@ -347,6 +347,19 @@ export default function Bookmarks() {
     [removePendingAction]
   );
 
+  const undoLatestPendingAction = useCallback(() => {
+    const latestPendingAction = [...pendingActionsRef.current]
+      .reverse()
+      .find((action) => action.status === "pending");
+
+    if (!latestPendingAction) {
+      return false;
+    }
+
+    undoPendingAction(latestPendingAction.id);
+    return true;
+  }, [undoPendingAction]);
+
   const invalidateBookmarkFolders = useCallback(
     async (folderIds: Array<string | undefined>) => {
       const uniqueFolderIds = Array.from(
@@ -660,6 +673,32 @@ export default function Bookmarks() {
       inputRef.current.focus();
     }
   });
+
+  useEffect(() => {
+    const handleUndoHotkey = (event: KeyboardEvent) => {
+      const isUndoShortcut =
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        event.key.toLowerCase() === "z";
+
+      if (
+        !isUndoShortcut ||
+        event.defaultPrevented ||
+        event.repeat ||
+        isEditableElement(event.target)
+      ) {
+        return;
+      }
+
+      if (undoLatestPendingAction()) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", handleUndoHotkey);
+    return () => window.removeEventListener("keydown", handleUndoHotkey);
+  }, [undoLatestPendingAction]);
 
   useEffect(() => {
     if (
@@ -1015,7 +1054,7 @@ export default function Bookmarks() {
                   return (
                     <div key={month} className="space-y-2">
                       {showMonths && (
-                        <h2 className="text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8">
+                        <h2 className="text-base font-medium border-b border-neutral-200 dark:border-neutral-800 pb-2 mt-8 px-2.5">
                           {month}
                         </h2>
                       )}
