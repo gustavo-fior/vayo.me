@@ -1,3 +1,9 @@
+type PopupSourceContext = {
+  url?: string | null;
+  title?: string | null;
+  favIconUrl?: string | null;
+};
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "add-to-vayo",
@@ -13,7 +19,13 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-async function openPopup() {
+async function openPopup(sourceContext?: PopupSourceContext) {
+  if (sourceContext) {
+    await chrome.storage.local.set({ popupSourceContext: sourceContext });
+  } else {
+    await chrome.storage.local.remove("popupSourceContext");
+  }
+
   try {
     await chrome.action.openPopup();
   } catch {
@@ -164,7 +176,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await chrome.storage.local.set({
       pendingAsset: { url: info.srcUrl, assetType, sourcePageUrl },
     });
-    await openPopup();
+    await openPopup({
+      url: sourcePageUrl,
+      title: tab?.title ?? null,
+      favIconUrl: tab?.favIconUrl ?? null,
+    });
     return;
   }
 
@@ -222,6 +238,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       });
     }
 
-    await openPopup();
+    await openPopup({
+      url: sourcePageUrl,
+      title: tab.title ?? null,
+      favIconUrl: tab.favIconUrl ?? null,
+    });
   }
 });

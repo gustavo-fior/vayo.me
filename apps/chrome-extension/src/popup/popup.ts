@@ -109,9 +109,15 @@ type PendingAsset = {
 type PendingTweetAssets =
   | { error: string; assets?: undefined; sourcePageUrl?: string | null }
   | { assets: PendingAsset[]; error?: undefined; sourcePageUrl?: string | null };
+type PopupSourceContext = {
+  url?: string | null;
+  title?: string | null;
+  favIconUrl?: string | null;
+};
 
 let pendingAsset: PendingAsset | null = null;
 let pendingTweetAssetsData: PendingTweetAssets | null = null;
+let currentPageContext: PopupSourceContext | null = null;
 
 function showScreen(screen: HTMLElement) {
   [
@@ -152,6 +158,10 @@ function matchesCurrentPage(
   }
 
   return normalizePageUrl(sourcePageUrl) === normalizePageUrl(currentPageUrl);
+}
+
+function isExtensionPage(url: string | null | undefined) {
+  return Boolean(url?.startsWith("chrome-extension://"));
 }
 
 function resetAssetPreview() {
@@ -244,24 +254,44 @@ async function init() {
   const storage = await chrome.storage.local.get([
     "pendingAsset",
     "pendingTweetAssets",
+    "popupSourceContext",
   ]);
   pendingAsset = storage.pendingAsset || null;
   pendingTweetAssetsData = storage.pendingTweetAssets || null;
+  const popupSourceContext = (storage.popupSourceContext ||
+    null) as PopupSourceContext | null;
   const [activeTab] = await chrome.tabs.query({
     active: true,
     currentWindow: true,
   });
-  const activeTabUrl = activeTab?.url ?? null;
+  const shouldUseSourceContext = isExtensionPage(activeTab?.url);
+
+  currentPageContext = shouldUseSourceContext
+    ? popupSourceContext
+    : {
+        url: activeTab?.url ?? null,
+        title: activeTab?.title ?? null,
+        favIconUrl: activeTab?.favIconUrl ?? null,
+      };
+
+  const currentPageUrl = currentPageContext?.url ?? null;
+
+  if (!shouldUseSourceContext && popupSourceContext) {
+    await chrome.storage.local.remove("popupSourceContext");
+  }
 
   if (
     pendingTweetAssetsData &&
-    !matchesCurrentPage(pendingTweetAssetsData.sourcePageUrl, activeTabUrl)
+    !matchesCurrentPage(pendingTweetAssetsData.sourcePageUrl, currentPageUrl)
   ) {
     pendingTweetAssetsData = null;
     await chrome.storage.local.remove("pendingTweetAssets");
   }
 
-  if (pendingAsset && !matchesCurrentPage(pendingAsset.sourcePageUrl, activeTabUrl)) {
+  if (
+    pendingAsset &&
+    !matchesCurrentPage(pendingAsset.sourcePageUrl, currentPageUrl)
+  ) {
     pendingAsset = null;
     await chrome.storage.local.remove("pendingAsset");
   }
@@ -313,11 +343,11 @@ async function init() {
 
     populateSelect(bookmarkFolderSelect, bookmarkFolders, "lastBookmarkFolder");
 
-    if (activeTab) {
-      bookmarkTitle.textContent = activeTab.title || "Untitled";
-      bookmarkUrl.textContent = activeTab.url || "";
-      if (activeTab.favIconUrl) {
-        bookmarkFavicon.src = activeTab.favIconUrl;
+    if (currentPageContext?.url) {
+      bookmarkTitle.textContent = currentPageContext.title || "Untitled";
+      bookmarkUrl.textContent = currentPageContext.url || "";
+      if (currentPageContext.favIconUrl) {
+        bookmarkFavicon.src = currentPageContext.favIconUrl;
       } else {
         bookmarkFavicon.style.display = "none";
       }
@@ -334,16 +364,18 @@ btnSignin.addEventListener("click", () => {
 });
 
 btnSaveBookmark.addEventListener("click", async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.url) return;
+  if (!currentPageContext?.url) return;
 
   const folderId = bookmarkFolderSelect.value;
   btnSaveBookmark.disabled = true;
   btnSaveBookmark.textContent = "Saving...";
 
   try {
-    await createBookmark(tab.url, folderId);
-    chrome.storage.local.set({ lastBookmarkFolder: folderId });
+    await createBookmark(currentPageContext.url, folderId);
+    chrome.storage.local.set({
+      lastBookmarkFolder: folderId,
+      popupSourceContext: null,
+    });
     showScreen(screenSuccess);
     setTimeout(() => window.close(), 1500);
   } catch {
@@ -363,7 +395,10 @@ btnSaveAsset.addEventListener("click", async () => {
   try {
     await createAsset(pendingAsset.url, folderId, pendingAsset.assetType);
     chrome.storage.local.remove("pendingAsset");
-    chrome.storage.local.set({ lastCanvasFolder: folderId });
+    chrome.storage.local.set({
+      lastCanvasFolder: folderId,
+      popupSourceContext: null,
+    });
     showScreen(screenSuccess);
     setTimeout(() => window.close(), 1500);
   } catch {
@@ -405,7 +440,10 @@ btnSaveTweetAssets.addEventListener("click", async () => {
     }
 
     chrome.storage.local.remove("pendingTweetAssets");
-    chrome.storage.local.set({ lastCanvasFolder: folderId });
+    chrome.storage.local.set({
+      lastCanvasFolder: folderId,
+      popupSourceContext: null,
+    });
     showScreen(screenSuccess);
     setTimeout(() => window.close(), 1500);
   } catch {
