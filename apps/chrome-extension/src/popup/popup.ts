@@ -64,6 +64,9 @@ const btnSaveBookmark = document.getElementById(
 const btnSaveAsset = document.getElementById(
   "btn-save-asset"
 ) as HTMLButtonElement;
+const btnRemoveAsset = document.getElementById(
+  "btn-remove-asset"
+) as HTMLButtonElement;
 const btnSaveTweetAssets = document.getElementById(
   "btn-save-tweet-assets"
 ) as HTMLButtonElement;
@@ -137,29 +140,6 @@ function showError(msg: string) {
   showScreen(screenError);
 }
 
-function normalizePageUrl(url: string | null | undefined) {
-  if (!url) return null;
-
-  try {
-    const parsed = new URL(url);
-    parsed.hash = "";
-    return parsed.toString();
-  } catch {
-    return url;
-  }
-}
-
-function matchesCurrentPage(
-  sourcePageUrl: string | null | undefined,
-  currentPageUrl: string | null | undefined
-) {
-  if (!sourcePageUrl || !currentPageUrl) {
-    return false;
-  }
-
-  return normalizePageUrl(sourcePageUrl) === normalizePageUrl(currentPageUrl);
-}
-
 function isExtensionPage(url: string | null | undefined) {
   return Boolean(url?.startsWith("chrome-extension://"));
 }
@@ -204,9 +184,23 @@ function populateSelect(
 
 function renderTweetAssetsGrid(assets: PendingAsset[]) {
   tweetAssetsGrid.innerHTML = "";
-  for (const asset of assets) {
+  for (const [index, asset] of assets.entries()) {
     const wrapper = document.createElement("div");
     wrapper.className = "asset-thumb-wrapper";
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "asset-thumb-remove";
+    if (asset.assetType === "video") {
+      removeButton.classList.add("asset-thumb-remove-video");
+    }
+    removeButton.setAttribute("aria-label", "Remove asset");
+    removeButton.textContent = "\u00D7";
+    removeButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await removeTweetAsset(index);
+    });
+    wrapper.appendChild(removeButton);
 
     if (asset.assetType === "video") {
       const video = document.createElement("video");
@@ -229,6 +223,47 @@ function renderTweetAssetsGrid(assets: PendingAsset[]) {
 
     tweetAssetsGrid.appendChild(wrapper);
   }
+}
+
+async function clearPopupContext() {
+  await chrome.storage.local.remove("popupSourceContext");
+}
+
+async function removeSingleAsset() {
+  pendingAsset = null;
+  resetAssetPreview();
+  await chrome.storage.local.remove("pendingAsset");
+  await clearPopupContext();
+  window.close();
+}
+
+async function removeTweetAsset(index: number) {
+  const assets = pendingTweetAssetsData?.assets;
+  if (!assets) return;
+
+  const nextAssets = assets.filter((_, assetIndex) => assetIndex !== index);
+
+  if (nextAssets.length === 0) {
+    pendingTweetAssetsData = null;
+    await chrome.storage.local.remove("pendingTweetAssets");
+    await clearPopupContext();
+    window.close();
+    return;
+  }
+
+  pendingTweetAssetsData = {
+    assets: nextAssets,
+    sourcePageUrl: pendingTweetAssetsData?.sourcePageUrl ?? null,
+  };
+
+  await chrome.storage.local.set({
+    pendingTweetAssets: pendingTweetAssetsData,
+  });
+
+  tweetAssetsCount.textContent = `${nextAssets.length} asset${
+    nextAssets.length === 1 ? "" : "s"
+  } found`;
+  renderTweetAssetsGrid(nextAssets);
 }
 
 async function init() {
@@ -280,22 +315,6 @@ async function init() {
     await chrome.storage.local.remove("popupSourceContext");
   }
 
-  if (
-    pendingTweetAssetsData &&
-    !matchesCurrentPage(pendingTweetAssetsData.sourcePageUrl, currentPageUrl)
-  ) {
-    pendingTweetAssetsData = null;
-    await chrome.storage.local.remove("pendingTweetAssets");
-  }
-
-  if (
-    pendingAsset &&
-    !matchesCurrentPage(pendingAsset.sourcePageUrl, currentPageUrl)
-  ) {
-    pendingAsset = null;
-    await chrome.storage.local.remove("pendingAsset");
-  }
-
   if (pendingTweetAssetsData) {
     if (pendingTweetAssetsData.error) {
       showError(pendingTweetAssetsData.error);
@@ -324,8 +343,10 @@ async function init() {
     }
 
     populateSelect(assetFolderSelect, canvasFolders, "lastCanvasFolder");
+    btnRemoveAsset.classList.remove("asset-remove-btn-video");
 
     if (pendingAsset.assetType === "video") {
+      btnRemoveAsset.classList.add("asset-remove-btn-video");
       assetPreviewVideo.src = pendingAsset.url;
       assetPreviewVideo.classList.remove("hidden");
     } else {
@@ -406,6 +427,10 @@ btnSaveAsset.addEventListener("click", async () => {
     btnSaveAsset.textContent = "Save";
     showError("Failed to save asset.");
   }
+});
+
+btnRemoveAsset.addEventListener("click", async () => {
+  await removeSingleAsset();
 });
 
 btnSaveTweetAssets.addEventListener("click", async () => {
