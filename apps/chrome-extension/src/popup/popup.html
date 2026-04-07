@@ -35,7 +35,25 @@
     </div>
     <div class="field">
       <label for="bookmark-folder">Folder</label>
-      <select id="bookmark-folder"></select>
+      <div class="select-row">
+        <select id="bookmark-folder"></select>
+        <button id="btn-new-bookmark-folder" class="btn-new-folder" type="button" aria-label="New folder">+</button>
+      </div>
+      <div id="new-bookmark-folder-form" class="new-folder-form hidden">
+        <div class="new-folder-type-row">
+          <button type="button" class="type-toggle active" data-type="bookmarks" data-form="bookmark">Bookmarks</button>
+          <button type="button" class="type-toggle" data-type="canvas" data-form="bookmark">Canvas</button>
+        </div>
+        <div class="new-folder-name-row">
+          <button id="btn-emoji-bookmark" class="btn-emoji" type="button">?</button>
+          <input id="new-bookmark-folder-name" type="text" class="new-folder-input" placeholder="Folder name" maxlength="50">
+        </div>
+        <div id="emoji-grid-bookmark" class="emoji-grid hidden"></div>
+        <div class="new-folder-actions">
+          <button id="btn-cancel-bookmark-folder" class="btn-new-folder-cancel" type="button">Cancel</button>
+          <button id="btn-create-bookmark-folder" class="btn-new-folder-create" type="button">Create</button>
+        </div>
+      </div>
     </div>
     <button id="btn-save-bookmark" class="btn-primary">Save</button>
   </div>
@@ -51,7 +69,25 @@
     </div>
     <div class="field">
       <label for="asset-folder">Canvas Folder</label>
-      <select id="asset-folder"></select>
+      <div class="select-row">
+        <select id="asset-folder"></select>
+        <button id="btn-new-asset-folder" class="btn-new-folder" type="button" aria-label="New folder">+</button>
+      </div>
+      <div id="new-asset-folder-form" class="new-folder-form hidden">
+        <div class="new-folder-type-row">
+          <button type="button" class="type-toggle" data-type="bookmarks" data-form="asset">Bookmarks</button>
+          <button type="button" class="type-toggle active" data-type="canvas" data-form="asset">Canvas</button>
+        </div>
+        <div class="new-folder-name-row">
+          <button id="btn-emoji-asset" class="btn-emoji" type="button">?</button>
+          <input id="new-asset-folder-name" type="text" class="new-folder-input" placeholder="Folder name" maxlength="50">
+        </div>
+        <div id="emoji-grid-asset" class="emoji-grid hidden"></div>
+        <div class="new-folder-actions">
+          <button id="btn-cancel-asset-folder" class="btn-new-folder-cancel" type="button">Cancel</button>
+          <button id="btn-create-asset-folder" class="btn-new-folder-create" type="button">Create</button>
+        </div>
+      </div>
     </div>
     <button id="btn-save-asset" class="btn-primary">Save</button>
   </div>
@@ -62,7 +98,25 @@
     <div id="tweet-assets-grid" class="tweet-assets-grid"></div>
     <div class="field">
       <label for="tweet-assets-folder">Canvas Folder</label>
-      <select id="tweet-assets-folder"></select>
+      <div class="select-row">
+        <select id="tweet-assets-folder"></select>
+        <button id="btn-new-tweet-folder" class="btn-new-folder" type="button" aria-label="New folder">+</button>
+      </div>
+      <div id="new-tweet-folder-form" class="new-folder-form hidden">
+        <div class="new-folder-type-row">
+          <button type="button" class="type-toggle" data-type="bookmarks" data-form="tweet">Bookmarks</button>
+          <button type="button" class="type-toggle active" data-type="canvas" data-form="tweet">Canvas</button>
+        </div>
+        <div class="new-folder-name-row">
+          <button id="btn-emoji-tweet" class="btn-emoji" type="button">?</button>
+          <input id="new-tweet-folder-name" type="text" class="new-folder-input" placeholder="Folder name" maxlength="50">
+        </div>
+        <div id="emoji-grid-tweet" class="emoji-grid hidden"></div>
+        <div class="new-folder-actions">
+          <button id="btn-cancel-tweet-folder" class="btn-new-folder-cancel" type="button">Cancel</button>
+          <button id="btn-create-tweet-folder" class="btn-new-folder-create" type="button">Create</button>
+        </div>
+      </div>
     </div>
     <button id="btn-save-tweet-assets" class="btn-primary">Save All</button>
     <div class="progress-bar hidden" id="tweet-assets-progress-bar">
