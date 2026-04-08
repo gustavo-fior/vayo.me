@@ -307,7 +307,7 @@ select:focus {
   width: 2rem;
   height: 2rem;
   flex-shrink: 0;
-  background: var(--secondary);
+  background: var(--background);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   font-size: 0.8125rem;

@@ -136,7 +136,11 @@ export const CreateFolderDialog = ({
               <Button
                 variant="outline"
                 size="icon"
-                className="text-lg dark:border-input/50"
+                className="text-lg border-transparent dark:border-input/50 dark:bg-transparent bg-background"
+                style={{
+                  boxShadow:
+                    "0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06), 0px 2px 4px 0px rgba(0, 0, 0, 0.04)",
+                }}
               >
                 {icon ? (
                   <span className="text-lg mt-[1px]">{icon}</span>
