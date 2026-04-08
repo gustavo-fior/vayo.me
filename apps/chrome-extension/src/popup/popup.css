@@ -295,38 +295,6 @@ select:focus {
   border-radius: var(--radius);
 }
 
-.new-folder-type-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.25rem;
-}
-
-.type-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 1.625rem;
-  border-radius: calc(var(--radius) - 2px);
-  font-family: inherit;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  cursor: pointer;
-  background: transparent;
-  color: var(--muted-foreground);
-  border: 1px solid transparent;
-  transition: all 0.15s;
-}
-
-.type-toggle:hover {
-  color: var(--foreground);
-}
-
-.type-toggle.active {
-  background: var(--secondary);
-  color: var(--foreground);
-  border-color: var(--border);
-}
-
 .new-folder-name-row {
   display: flex;
   gap: 0.25rem;

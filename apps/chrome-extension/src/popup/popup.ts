@@ -552,18 +552,7 @@ function setupNewFolderForm(
   defaultType: "bookmarks" | "canvas",
   storageKey: string
 ) {
-  let selectedType: "bookmarks" | "canvas" = defaultType;
   let selectedIcon = "";
-
-  // Type toggles
-  const typeButtons = els.form.querySelectorAll<HTMLButtonElement>(".type-toggle");
-  typeButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      typeButtons.forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      selectedType = btn.dataset.type as "bookmarks" | "canvas";
-    });
-  });
 
   // Emoji picker
   buildEmojiGrid(els.emojiGrid, (emoji) => {
@@ -580,13 +569,9 @@ function setupNewFolderForm(
   function resetForm() {
     els.nameInput.value = "";
     selectedIcon = "";
-    selectedType = defaultType;
     els.btnEmoji.textContent = "?";
     els.btnEmoji.classList.remove("has-emoji");
     els.emojiGrid.classList.add("hidden");
-    typeButtons.forEach((b) => {
-      b.classList.toggle("active", b.dataset.type === defaultType);
-    });
   }
 
   els.btnToggle.addEventListener("click", () => {
@@ -620,12 +605,12 @@ function setupNewFolderForm(
     els.btnCreate.textContent = "...";
 
     try {
-      const created = await createFolder(name, selectedType, selectedIcon || undefined);
+      const created = await createFolder(name, defaultType, selectedIcon || undefined);
       const newFolder = created[0];
 
       const allFolders = await getFolders();
-      const filtered = allFolders.filter((f) => f.type === selectedType);
-      const key = selectedType === "canvas" ? "lastCanvasFolder" : "lastBookmarkFolder";
+      const filtered = allFolders.filter((f) => f.type === defaultType);
+      const key = defaultType === "canvas" ? "lastCanvasFolder" : "lastBookmarkFolder";
       populateSelect(select, filtered, key);
 
       if (newFolder) {
