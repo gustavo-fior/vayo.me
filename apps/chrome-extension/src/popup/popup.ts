@@ -3,6 +3,7 @@ import {
   getFolders,
   createBookmark,
   createAsset,
+  createFolder,
   type Folder,
 } from "../lib/api";
 import { APP_URL } from "../lib/config";
@@ -103,6 +104,33 @@ const tweetAssetsProgressText = document.getElementById(
   "tweet-assets-progress-text"
 )!;
 const errorMessage = document.getElementById("error-message")!;
+
+// New folder form elements
+interface NewFolderFormElements {
+  btnToggle: HTMLButtonElement;
+  form: HTMLElement;
+  nameInput: HTMLInputElement;
+  btnCancel: HTMLButtonElement;
+  btnCreate: HTMLButtonElement;
+  btnEmoji: HTMLButtonElement;
+  emojiGrid: HTMLElement;
+}
+
+function getFormElements(prefix: string): NewFolderFormElements {
+  return {
+    btnToggle: document.getElementById(`btn-new-${prefix}-folder`) as HTMLButtonElement,
+    form: document.getElementById(`new-${prefix}-folder-form`)!,
+    nameInput: document.getElementById(`new-${prefix}-folder-name`) as HTMLInputElement,
+    btnCancel: document.getElementById(`btn-cancel-${prefix}-folder`) as HTMLButtonElement,
+    btnCreate: document.getElementById(`btn-create-${prefix}-folder`) as HTMLButtonElement,
+    btnEmoji: document.getElementById(`btn-emoji-${prefix}`) as HTMLButtonElement,
+    emojiGrid: document.getElementById(`emoji-grid-${prefix}`)!,
+  };
+}
+
+const bookmarkFormEls = getFormElements("bookmark");
+const assetFormEls = getFormElements("asset");
+const tweetFormEls = getFormElements("tweet");
 
 type PendingAsset = {
   url: string;
@@ -324,10 +352,6 @@ async function init() {
 
     const assets = pendingTweetAssetsData.assets!;
     const canvasFolders = folders.filter((f) => f.type === "canvas");
-    if (canvasFolders.length === 0) {
-      showError("No canvas folders found. Create one in VAYØ first.");
-      return;
-    }
 
     tweetAssetsCount.textContent = `${assets.length} asset${
       assets.length === 1 ? "" : "s"
@@ -337,10 +361,6 @@ async function init() {
     showScreen(screenTweetAssets);
   } else if (pendingAsset) {
     const canvasFolders = folders.filter((f) => f.type === "canvas");
-    if (canvasFolders.length === 0) {
-      showError("No canvas folders found. Create one in VAYØ first.");
-      return;
-    }
 
     populateSelect(assetFolderSelect, canvasFolders, "lastCanvasFolder");
     btnRemoveAsset.classList.remove("asset-remove-btn-video");
@@ -357,10 +377,6 @@ async function init() {
     showScreen(screenAsset);
   } else {
     const bookmarkFolders = folders.filter((f) => f.type === "bookmarks");
-    if (bookmarkFolders.length === 0) {
-      showError("No bookmark folders found. Create one in VAYØ first.");
-      return;
-    }
 
     populateSelect(bookmarkFolderSelect, bookmarkFolders, "lastBookmarkFolder");
 
@@ -388,6 +404,7 @@ btnSaveBookmark.addEventListener("click", async () => {
   if (!currentPageContext?.url) return;
 
   const folderId = bookmarkFolderSelect.value;
+  if (!folderId) return;
   btnSaveBookmark.disabled = true;
   btnSaveBookmark.textContent = "Saving...";
 
@@ -410,6 +427,7 @@ btnSaveAsset.addEventListener("click", async () => {
   if (!pendingAsset) return;
 
   const folderId = assetFolderSelect.value;
+  if (!folderId) return;
   btnSaveAsset.disabled = true;
   btnSaveAsset.textContent = "Saving...";
 
@@ -438,6 +456,7 @@ btnSaveTweetAssets.addEventListener("click", async () => {
 
   const assets = pendingTweetAssetsData.assets;
   const folderId = tweetAssetsFolderSelect.value;
+  if (!folderId) return;
   btnSaveTweetAssets.disabled = true;
   btnSaveTweetAssets.textContent = "Saving...";
 
@@ -481,5 +500,138 @@ btnSaveTweetAssets.addEventListener("click", async () => {
 });
 
 btnRetry.addEventListener("click", () => init());
+
+// --- New folder creation ---
+
+const EMOJI_LIST = [
+  // Smileys
+  "😀", "😂", "🥹", "😍", "🤩", "😎", "🤔", "🫠",
+  // Gestures
+  "👍", "👎", "👏", "🤝", "✌️", "🤞", "💪", "🫶",
+  // Hearts & emotions
+  "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
+  "💖", "💝", "💔", "❤️‍🔥", "✨", "💫", "⭐", "🌟",
+  // Nature
+  "🌈", "🔥", "💧", "❄️", "⚡", "🌊", "🌸", "🌺",
+  "🌻", "🌹", "🍀", "🌴", "🌙", "☀️", "🌤️", "🌎",
+  // Animals
+  "🐶", "🐱", "🐻", "🦊", "🐰", "🐼", "🦁", "🐸",
+  "🦋", "🐝", "🐙", "🦄", "🐳", "🦅", "🐧", "🦀",
+  // Food & drink
+  "🍕", "🍔", "🌮", "🍜", "🍣", "🍩", "🍰", "🧁",
+  "☕", "🍷", "🍺", "🥤", "🥐", "🍎", "🍑", "🥑",
+  // Activities & objects
+  "⚽", "🏀", "🎾", "🎮", "🎲", "🎸", "🎹", "🎤",
+  "🎬", "📸", "🎨", "🖼️", "🎭", "🎪", "🎵", "🎶",
+  // Travel & places
+  "🏠", "🏢", "🏰", "⛩️", "🗼", "🏖️", "🏔️", "🌋",
+  "✈️", "🚀", "🛸", "🚗", "🚂", "⛵", "🎡", "🗺️",
+  // Tech & tools
+  "💻", "📱", "⌨️", "🖥️", "🔧", "🛠️", "⚙️", "🔬",
+  "💡", "🔋", "📡", "🤖", "👾", "🕹️", "💾", "📀",
+  // Symbols & misc
+  "📁", "📂", "📌", "📎", "🔖", "🏷️", "📝", "📚",
+  "💎", "🔑", "🎯", "🎁", "🏆", "🥇", "🎗️", "🔔",
+  "🚩", "🏁", "💰", "💸", "🧲", "🪄", "🫧", "♻️",
+];
+
+function buildEmojiGrid(grid: HTMLElement, onSelect: (emoji: string) => void) {
+  grid.innerHTML = "";
+  for (const emoji of EMOJI_LIST) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = emoji;
+    btn.addEventListener("click", () => onSelect(emoji));
+    grid.appendChild(btn);
+  }
+}
+
+function setupNewFolderForm(
+  els: NewFolderFormElements,
+  select: HTMLSelectElement,
+  defaultType: "bookmarks" | "canvas",
+  storageKey: string
+) {
+  let selectedIcon = "";
+
+  // Emoji picker
+  buildEmojiGrid(els.emojiGrid, (emoji) => {
+    selectedIcon = emoji;
+    els.btnEmoji.textContent = emoji;
+    els.btnEmoji.classList.add("has-emoji");
+    els.emojiGrid.classList.add("hidden");
+  });
+
+  els.btnEmoji.addEventListener("click", () => {
+    els.emojiGrid.classList.toggle("hidden");
+  });
+
+  function resetForm() {
+    els.nameInput.value = "";
+    selectedIcon = "";
+    els.btnEmoji.textContent = "?";
+    els.btnEmoji.classList.remove("has-emoji");
+    els.emojiGrid.classList.add("hidden");
+  }
+
+  els.btnToggle.addEventListener("click", () => {
+    els.form.classList.toggle("hidden");
+    if (!els.form.classList.contains("hidden")) {
+      resetForm();
+      els.nameInput.focus();
+    }
+  });
+
+  els.btnCancel.addEventListener("click", () => {
+    els.form.classList.add("hidden");
+    resetForm();
+  });
+
+  els.btnCreate.addEventListener("click", () => doCreate());
+
+  els.nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doCreate();
+    if (e.key === "Escape") {
+      els.form.classList.add("hidden");
+      resetForm();
+    }
+  });
+
+  async function doCreate() {
+    const name = els.nameInput.value.trim();
+    if (!name) return;
+
+    els.btnCreate.disabled = true;
+    els.btnCreate.textContent = "...";
+
+    try {
+      const created = await createFolder(name, defaultType, selectedIcon || undefined);
+      const newFolder = created[0];
+
+      const allFolders = await getFolders();
+      const filtered = allFolders.filter((f) => f.type === defaultType);
+      const key = defaultType === "canvas" ? "lastCanvasFolder" : "lastBookmarkFolder";
+      populateSelect(select, filtered, key);
+
+      if (newFolder) {
+        select.value = newFolder.id;
+        chrome.storage.local.set({ [key]: newFolder.id });
+      }
+
+      els.form.classList.add("hidden");
+      resetForm();
+    } catch {
+      els.nameInput.style.borderColor = "var(--destructive)";
+      setTimeout(() => (els.nameInput.style.borderColor = ""), 1000);
+    } finally {
+      els.btnCreate.disabled = false;
+      els.btnCreate.textContent = "Create";
+    }
+  }
+}
+
+setupNewFolderForm(bookmarkFormEls, bookmarkFolderSelect, "bookmarks", "lastBookmarkFolder");
+setupNewFolderForm(assetFormEls, assetFolderSelect, "canvas", "lastCanvasFolder");
+setupNewFolderForm(tweetFormEls, tweetAssetsFolderSelect, "canvas", "lastCanvasFolder");
 
 init();

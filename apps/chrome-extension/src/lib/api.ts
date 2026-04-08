@@ -45,6 +45,14 @@ export async function createBookmark(url: string, folderId: string) {
   return trpcMutation("bookmarks.createBookmark", { url, folderId });
 }
 
+export async function createFolder(
+  name: string,
+  type: "bookmarks" | "canvas",
+  icon?: string
+): Promise<Folder[]> {
+  return trpcMutation<Folder[]>("folders.createFolder", { name, type, icon });
+}
+
 export async function createAsset(
   url: string,
   folderId: string,
