@@ -104,7 +104,7 @@ async function bgCreateAsset(
   folderId: string,
   assetType: "image" | "video"
 ) {
-  const res = await fetch(`${SERVER_URL}/trpc/canvasAssets.createAsset`, {
+  const res = await fetch(`${SERVER_URL}/trpc/items.createAsset`, {
     method: "POST",
     headers: await authedHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ url, folderId, assetType }),

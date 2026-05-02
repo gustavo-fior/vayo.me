@@ -12,17 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import type { Folder } from "@/app/bookmarks/page";
-import { BookmarkIcon, ImageIcon, LayoutPanelLeftIcon } from "lucide-react";
+import type { FolderRecord } from "@/types/items";
 
 export const SelectFolder = ({
   selectedFolder,
   setSelectedFolder,
   folders,
 }: {
-  selectedFolder: Folder | null;
-  setSelectedFolder: (folder: Folder | null) => void;
-  folders: Folder[];
+  selectedFolder: FolderRecord | null;
+  setSelectedFolder: (folder: FolderRecord | null) => void;
+  folders: FolderRecord[];
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -113,11 +112,6 @@ export const SelectFolder = ({
               <span className="text-[11px] text-muted-foreground/50 tabular-nums">
                 {folder.totalItems}
               </span>
-              {folder.type === "canvas" ? (
-                <LayoutPanelLeftIcon className="size-2.5 stroke-[1.5] text-muted-foreground/50 fill-current/10 dark:fill-current/20" />
-              ) : (
-                <BookmarkIcon className="size-2.5 stroke-[1.5] text-muted-foreground/50 fill-current/10 dark:fill-current/20" />
-              )}
               {selectedFolder?.id !== folder.id && (
                 <span className="flex text-[10px] items-center justify-center bg-muted/50 rounded-[3px] py-[1px] px-1 border border-border/30 group-hover:bg-transparent group-hover:border-transparent tabular-nums font-mono">
                   {index + 1}

@@ -12,22 +12,22 @@ import {
   canRecommendChromeExtension,
   checkVayoChromeExtensionInstalled,
 } from "@/lib/chrome-extension";
+import type { FolderView } from "@/types/items";
 import {
   ArrowUpRight,
   Calendar,
-  Columns3,
+  Chrome,
   CircleIcon,
+  Columns3,
   ExpandIcon,
   Grid2X2,
   LayoutDashboard,
-  LayoutPanelLeftIcon,
+  List,
   LogOut,
-  Maximize,
   MaximizeIcon,
   Moon,
+  PanelsTopLeft,
   User,
-  VectorSquareIcon,
-  Chrome,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
@@ -35,14 +35,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
-import { Switch } from "./ui/switch";
 import { Shortcut } from "./ui/shortcut";
+import { Switch } from "./ui/switch";
 
 const COLUMN_OPTIONS = [2, 3, 4, 5] as const;
 
 export type CanvasControls = {
-  viewMode: "masonry" | "canvas";
-  setViewMode: (mode: "masonry" | "canvas") => void;
+  viewMode: FolderView;
+  setViewMode: (mode: FolderView) => void;
   columns: number;
   setColumns: (n: number) => void;
   fullWidth: boolean;
@@ -58,14 +58,12 @@ export default function UserMenu({
   setShowMonths,
   showOgImage,
   setShowOgImage,
-  isCanvasFolder,
   canvasControls,
 }: {
   showMonths: boolean;
   setShowMonths: (showMonths: boolean) => void;
   showOgImage: boolean;
   setShowOgImage: (showOgImage: boolean) => void;
-  isCanvasFolder?: boolean;
   canvasControls?: CanvasControls;
 }) {
   const router = useRouter();
@@ -97,6 +95,8 @@ export default function UserMenu({
     };
   }, []);
 
+  const viewMode = canvasControls?.viewMode ?? "list";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -107,8 +107,8 @@ export default function UserMenu({
         >
           {session?.user.image ? (
             <Image
-              src={session?.user.image ?? ""}
-              className="rounded-full cursor-pointer select-none size-6"
+              src={session.user.image}
+              className="size-6 rounded-full cursor-pointer select-none"
               alt="User"
               width={1080}
               height={1080}
@@ -118,13 +118,13 @@ export default function UserMenu({
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={12} className="w-64">
-        <div className="flex justify-between items-center pr-1">
+      <DropdownMenuContent align="end" sideOffset={12} className="w-72">
+        <div className="flex items-center justify-between pr-1">
           <div className="flex flex-col gap-0.5">
             <DropdownMenuLabel className="pb-0 select-none">
               {session?.user.name}
             </DropdownMenuLabel>
-            <DropdownMenuLabel className="text-xs text-neutral-500 pt-0 select-none font-normal">
+            <DropdownMenuLabel className="pt-0 text-xs font-normal text-neutral-500 select-none">
               {session?.user.email}
             </DropdownMenuLabel>
           </div>
@@ -144,49 +144,52 @@ export default function UserMenu({
             <LogOut className="size-3.5 stroke-[1.5] text-neutral-500" />
           </Button>
         </div>
-        {!canvasControls && <DropdownMenuSeparator />}
 
         {canvasControls && (
           <>
-            <div className="p-2 ">
+            <DropdownMenuSeparator />
+            <div className="p-2">
               <div className="flex gap-1">
                 <Button
-                  variant={
-                    canvasControls.viewMode === "masonry"
-                      ? "secondary"
-                      : "ghost"
-                  }
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
                   size="sm"
                   className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
-                  onClick={() => canvasControls.setViewMode("masonry")}
+                  onClick={() => canvasControls.setViewMode("list")}
                 >
-                  <Grid2X2 className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500" />
+                  <List className="size-3.5 stroke-[1.5] text-neutral-500" />
+                  <span className="text-xs">List</span>
+                </Button>
+                <Button
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
+                  onClick={() => canvasControls.setViewMode("grid")}
+                >
+                  <Grid2X2 className="size-3.5 stroke-[1.5] text-neutral-500" />
                   <span className="text-xs">Grid</span>
                   <Shortcut>G</Shortcut>
                 </Button>
                 <Button
-                  variant={
-                    canvasControls.viewMode === "canvas" ? "secondary" : "ghost"
-                  }
+                  variant={viewMode === "canvas" ? "secondary" : "ghost"}
                   size="sm"
                   className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
                   onClick={() => canvasControls.setViewMode("canvas")}
                 >
-                  <LayoutDashboard className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500" />
+                  <LayoutDashboard className="size-3.5 stroke-[1.5] text-neutral-500" />
                   <span className="text-xs">Canvas</span>
                   <Shortcut>C</Shortcut>
                 </Button>
               </div>
             </div>
-            <DropdownMenuSeparator />
           </>
         )}
 
+        <DropdownMenuSeparator />
         <div
           className="flex items-center justify-between gap-2 p-2 cursor-pointer"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
-          <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2">
             <Moon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
             <Label className="cursor-pointer select-none font-normal">
               Dark Mode
@@ -201,57 +204,102 @@ export default function UserMenu({
           />
         </div>
 
-        {/* Canvas-specific controls */}
-        {isCanvasFolder && canvasControls && (
+        {viewMode !== "canvas" && (
           <>
-            {canvasControls.viewMode === "masonry" && (
-              <>
-                <DropdownMenuSeparator className="hidden md:block" />
-                <div
-                  className="items-center justify-between gap-2 p-2 cursor-pointer hidden md:flex"
-                  onClick={() =>
-                    canvasControls.setFullWidth(!canvasControls.fullWidth)
-                  }
-                >
-                  <div className="flex gap-2 items-center">
-                    <ExpandIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
-                    <Label className="cursor-pointer select-none font-normal">
-                      Full Width
-                    </Label>
-                    <Shortcut>W</Shortcut>
-                  </div>
-                  <Switch
-                    checked={canvasControls.fullWidth}
-                    onCheckedChange={canvasControls.setFullWidth}
-                  />
-                </div>
-                <DropdownMenuSeparator />
-                <div
-                  className="flex items-center justify-between gap-2 p-2 cursor-pointer"
-                  onClick={() =>
-                    canvasControls.setMoreSpace(!canvasControls.moreSpace)
-                  }
-                >
-                  <div className="flex gap-2 items-center">
-                    <MaximizeIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
-                    <Label className="cursor-pointer select-none font-normal">
-                      More Space
-                    </Label>
-                    <Shortcut>S</Shortcut>
-                  </div>
-                  <Switch
-                    checked={canvasControls.moreSpace}
-                    onCheckedChange={canvasControls.setMoreSpace}
-                  />
-                </div>
-              </>
-            )}
+            <DropdownMenuSeparator />
+            <div
+              className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+              onClick={() => setShowOgImage(!showOgImage)}
+            >
+              <div className="flex items-center gap-2">
+                <PanelsTopLeft className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                <Label className="cursor-pointer select-none font-normal">
+                  Show Image
+                </Label>
+                <Shortcut>V</Shortcut>
+              </div>
+              <Switch
+                checked={showOgImage}
+                onCheckedChange={() => setShowOgImage(!showOgImage)}
+              />
+            </div>
+          </>
+        )}
+
+        {viewMode === "list" && (
+          <>
+            <DropdownMenuSeparator />
+            <div
+              className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+              onClick={() => setShowMonths(!showMonths)}
+            >
+              <div className="flex items-center gap-2">
+                <Calendar className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                <Label className="cursor-pointer select-none font-normal">
+                  Show Months
+                </Label>
+                <Shortcut>M</Shortcut>
+              </div>
+              <Switch
+                checked={showMonths}
+                onCheckedChange={() => setShowMonths(!showMonths)}
+              />
+            </div>
+          </>
+        )}
+
+        {canvasControls && viewMode === "grid" && (
+          <>
+            <DropdownMenuSeparator className="hidden md:block" />
+            <div
+              className="hidden cursor-pointer items-center justify-between gap-2 p-2 md:flex"
+              onClick={() =>
+                canvasControls.setFullWidth(!canvasControls.fullWidth)
+              }
+            >
+              <div className="flex items-center gap-2">
+                <ExpandIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                <Label className="cursor-pointer select-none font-normal">
+                  Full Width
+                </Label>
+                <Shortcut>W</Shortcut>
+              </div>
+              <Switch
+                checked={canvasControls.fullWidth}
+                onCheckedChange={canvasControls.setFullWidth}
+              />
+            </div>
+
+            <DropdownMenuSeparator />
+            <div
+              className="flex items-center justify-between gap-2 p-2 cursor-pointer"
+              onClick={() =>
+                canvasControls.setMoreSpace(!canvasControls.moreSpace)
+              }
+            >
+              <div className="flex items-center gap-2">
+                <MaximizeIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                <Label className="cursor-pointer select-none font-normal">
+                  More Space
+                </Label>
+                <Shortcut>S</Shortcut>
+              </div>
+              <Switch
+                checked={canvasControls.moreSpace}
+                onCheckedChange={canvasControls.setMoreSpace}
+              />
+            </div>
+          </>
+        )}
+
+        {canvasControls && viewMode !== "list" && (
+          <>
             <DropdownMenuSeparator />
             <div
               className="flex items-center justify-between gap-2 p-2 cursor-pointer"
               onClick={() => canvasControls.setRounded(!canvasControls.rounded)}
             >
-              <div className="flex gap-2 items-center">
+              <div className="flex items-center gap-2">
                 <CircleIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
                 <Label className="cursor-pointer select-none font-normal">
                   Rounded
@@ -263,71 +311,32 @@ export default function UserMenu({
                 onCheckedChange={canvasControls.setRounded}
               />
             </div>
-            {canvasControls.viewMode === "masonry" && (
-              <>
-                <DropdownMenuSeparator />
-                <div className="flex items-center justify-between gap-2 p-2">
-                  <div className="flex gap-2 items-center">
-                    <Columns3 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
-                    <Label className="select-none font-normal">Columns</Label>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {COLUMN_OPTIONS.map((n) => (
-                      <Button
-                        key={n}
-                        variant={
-                          canvasControls.columns === n ? "secondary" : "ghost"
-                        }
-                        size="sm"
-                        className="h-5 w-5 px-0 text-xs rounded tabular-nums"
-                        onClick={() => canvasControls.setColumns(n)}
-                      >
-                        {n}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
           </>
         )}
 
-        {/* Bookmark-specific controls */}
-        {!isCanvasFolder && (
+        {canvasControls && viewMode === "grid" && (
           <>
             <DropdownMenuSeparator />
-            <div
-              className="flex items-center justify-between gap-2 p-2 cursor-pointer"
-              onClick={() => setShowOgImage(!showOgImage)}
-            >
-              <div className="flex gap-2 items-center">
-                <LayoutPanelLeftIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
-                <Label className="cursor-pointer select-none font-normal">
-                  Show Image
-                </Label>
-                <Shortcut>V</Shortcut>
+            <div className="flex items-center justify-between gap-2 p-2">
+              <div className="flex items-center gap-2">
+                <Columns3 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                <Label className="select-none font-normal">Columns</Label>
               </div>
-              <Switch
-                checked={showOgImage}
-                onCheckedChange={() => setShowOgImage(!showOgImage)}
-              />
-            </div>
-            <DropdownMenuSeparator />
-            <div
-              className="flex items-center justify-between gap-2 p-2 cursor-pointer"
-              onClick={() => setShowMonths(!showMonths)}
-            >
-              <div className="flex gap-2 items-center">
-                <Calendar className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
-                <Label className="cursor-pointer select-none font-normal">
-                  Show Months
-                </Label>
-                <Shortcut>M</Shortcut>
+              <div className="flex items-center gap-1">
+                {COLUMN_OPTIONS.map((n) => (
+                  <Button
+                    key={n}
+                    variant={
+                      canvasControls.columns === n ? "secondary" : "ghost"
+                    }
+                    size="sm"
+                    className="h-5 w-5 rounded px-0 text-xs tabular-nums"
+                    onClick={() => canvasControls.setColumns(n)}
+                  >
+                    {n}
+                  </Button>
+                ))}
               </div>
-              <Switch
-                checked={showMonths}
-                onCheckedChange={() => setShowMonths(!showMonths)}
-              />
             </div>
           </>
         )}

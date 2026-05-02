@@ -1,8 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
-import type { CanvasAssetType } from "./asset-card";
 import { AssetMedia } from "./asset-media";
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
@@ -15,7 +15,9 @@ import {
   CopyIcon,
   ExternalLink,
   FolderOpenIcon,
+  Globe,
   ImageIcon,
+  Palette,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,30 +31,37 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "../ui/context-menu";
-import type { Folder } from "@/app/bookmarks/page";
+import type { FolderRecord, ItemRecord } from "@/types/items";
+import { getCanvasNodeSize, getItemDomain } from "@/utils/item-display";
+import { getGoogleFavicon } from "@/utils/google-favicon";
+import { getPlaceholderColor } from "@/utils/placeholder-color";
+import { isMediaItem } from "@/types/items";
+import { isValidURL } from "@/utils/url-validator";
 
 const MIN_SIZE = 50;
-const DEFAULT_ASSET_WIDTH = 300;
+const AUTO_LAYOUT_COLUMNS = 4;
+const AUTO_LAYOUT_GAP = 24;
 
-function useNaturalDimensions(assets: CanvasAssetType[]) {
+function useNaturalDimensions(items: ItemRecord[]) {
   const [dimensions, setDimensions] = useState<
     Map<string, { width: number; height: number }>
   >(new Map());
   const loadedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    for (const asset of assets) {
-      if (asset.canvasWidth != null && asset.canvasHeight != null) continue;
-      if (loadedRef.current.has(asset.id)) continue;
-      loadedRef.current.add(asset.id);
+    for (const item of items) {
+      if (!isMediaItem(item)) continue;
+      if (item.canvasWidth != null && item.canvasHeight != null) continue;
+      if (loadedRef.current.has(item.id)) continue;
+      loadedRef.current.add(item.id);
 
-      if (asset.assetType === "video") {
+      if (item.type === "video") {
         const video = document.createElement("video");
-        video.src = asset.url;
+        video.src = item.url ?? "";
         video.onloadedmetadata = () => {
           setDimensions((prev) => {
             const next = new Map(prev);
-            next.set(asset.id, {
+            next.set(item.id, {
               width: video.videoWidth,
               height: video.videoHeight,
             });
@@ -60,23 +69,135 @@ function useNaturalDimensions(assets: CanvasAssetType[]) {
           });
         };
       } else {
-        const img = new Image();
-        img.src = asset.url;
-        img.onload = () => {
+        const image = new window.Image();
+        image.src = item.url ?? "";
+        image.onload = () => {
           setDimensions((prev) => {
             const next = new Map(prev);
-            next.set(asset.id, {
-              width: img.naturalWidth,
-              height: img.naturalHeight,
+            next.set(item.id, {
+              width: image.naturalWidth,
+              height: image.naturalHeight,
             });
             return next;
           });
         };
       }
     }
-  }, [assets]);
+  }, [items]);
 
   return dimensions;
+}
+
+function copyItemValue(item: ItemRecord) {
+  navigator.clipboard.writeText(
+    item.type === "color" ? item.color ?? "" : item.url ?? ""
+  );
+  toast.custom(
+    () => (
+      <div className="flex justify-center mx-auto">
+        <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
+          <CircleCheckIcon
+            className="size-3.5 text-green-400 dark:text-green-600"
+            strokeWidth={2.2}
+          />
+          <h1>
+            {item.type === "color"
+              ? "Color copied to clipboard"
+              : "URL copied to clipboard"}
+          </h1>
+        </div>
+      </div>
+    ),
+    { position: "top-center" }
+  );
+}
+
+function CanvasLinkCard({
+  item,
+  rounded,
+}: {
+  item: ItemRecord;
+  rounded: boolean;
+}) {
+  const domain = getItemDomain(item.url);
+  const [hasOgImage, setHasOgImage] = useState(
+    Boolean(item.ogImageUrl && isValidURL(item.ogImageUrl))
+  );
+
+  return (
+    <div
+      className={`flex h-full w-full flex-col overflow-hidden ${
+        rounded ? "rounded-md" : "rounded-none"
+      }`}
+    >
+      <div
+        className="relative min-h-0 flex-1 overflow-hidden bg-muted/30"
+        style={
+          hasOgImage
+            ? undefined
+            : { backgroundColor: getPlaceholderColor(item.id) }
+        }
+      >
+        {hasOgImage && (
+          <Image
+            src={item.ogImageUrl ?? ""}
+            alt=""
+            fill
+            className="object-cover"
+            unoptimized
+            onError={() => setHasOgImage(false)}
+          />
+        )}
+      </div>
+      <div className="flex items-start gap-3 p-3">
+        {item.faviconUrl && item.url ? (
+          <Image
+            src={getGoogleFavicon(item.url)}
+            alt=""
+            width={16}
+            height={16}
+            className="mt-[5px] size-4 rounded-xs"
+            unoptimized
+          />
+        ) : (
+          <Globe className="mt-[5px] size-4 text-muted-foreground/60" />
+        )}
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-sm font-medium">{item.title}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {domain}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CanvasColorCard({
+  item,
+  rounded,
+}: {
+  item: ItemRecord;
+  rounded: boolean;
+}) {
+  return (
+    <div
+      className={`flex h-full w-full flex-col overflow-hidden bg-card ${
+        rounded ? "rounded-md" : "rounded-none"
+      }`}
+    >
+      <div
+        className="flex-1"
+        style={{ backgroundColor: item.color ?? "#e5e5e5" }}
+      />
+      <div className="space-y-1 p-3">
+        <p className="truncate text-sm font-medium uppercase">{item.title}</p>
+        <p className="truncate text-[11px] lowercase text-muted-foreground/70">
+          {item.color}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function CanvasView({
@@ -89,26 +210,28 @@ export function CanvasView({
   onUpdateZIndex,
   onPreview,
   pendingAssetIds,
+  isPublic = false,
 }: {
-  assets: CanvasAssetType[];
+  assets: ItemRecord[];
   folderId?: string;
-  folders?: Folder[];
+  folders?: FolderRecord[];
   rounded?: boolean;
-  onDelete?: (asset: CanvasAssetType) => void;
-  onMove?: (asset: CanvasAssetType, folderId: string) => void;
+  onDelete?: (asset: ItemRecord) => void;
+  onMove?: (asset: ItemRecord, folderId: string) => void;
   onUpdateZIndex?: (
     updates: Array<{ id: string; canvasZIndex: number }>
   ) => void;
-  onPreview?: (asset: CanvasAssetType) => void;
+  onPreview?: (asset: ItemRecord) => void;
   pendingAssetIds?: Set<string>;
+  isPublic?: boolean;
 }) {
-  const canvasFolders = folders.filter(
-    (f) => f.type === "canvas" && f.id !== folderId
-  );
+  const availableFolders = folders.filter((f) => f.id !== folderId);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasLayerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const scaleRef = useRef(1);
+  const translateRef = useRef({ x: 0, y: 0 });
+  const scaleSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const translateStartRef = useRef({ x: 0, y: 0 });
@@ -129,38 +252,65 @@ export function CanvasView({
     Map<string, { x: number; y: number; width: number; height: number }>
   >(new Map());
   const prevAssetIdsRef = useRef<string[]>([]);
-
-  // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectedIdsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    selectedIdsRef.current = selectedIds;
-  }, [selectedIds]);
-
-  // Marquee state
   const isMarqueeRef = useRef(false);
   const marqueeStartRef = useRef({ x: 0, y: 0 });
-  const [marqueeRect, setMarqueeRect] = useState<{
+  const marqueeRectRef = useRef<{
     x: number;
     y: number;
     width: number;
     height: number;
   } | null>(null);
-
-  // Per-asset drag-moved tracking for click vs drag distinction
+  const marqueeDivRef = useRef<HTMLDivElement>(null);
+  const marqueeRafRef = useRef<number | null>(null);
+  const marqueeLatestEventRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef<Map<string, boolean>>(new Map());
-
-  // Multi-drag state
   const multiDragLeaderRef = useRef<string | null>(null);
   const multiDragStartPositionsRef = useRef<
     Map<string, { x: number; y: number; width: number; height: number }>
   >(new Map());
-  const [renderTick, setRenderTick] = useState(0);
+  const rndRefs = useRef<Map<string, Rnd>>(new Map());
 
-  // Migrate local positions when asset IDs change (temp ID → real DB ID swap)
+  const applyTransform = () => {
+    const layer = canvasLayerRef.current;
+    if (!layer) return;
+    const t = translateRef.current;
+    layer.style.transform = `translate(${t.x}px, ${t.y}px) scale(${scaleRef.current})`;
+  };
+
+  const scheduleScaleSync = () => {
+    if (scaleSyncTimerRef.current) clearTimeout(scaleSyncTimerRef.current);
+    scaleSyncTimerRef.current = setTimeout(() => {
+      scaleSyncTimerRef.current = null;
+      setScale(scaleRef.current);
+    }, 100);
+  };
+
+  const applyMarqueeStyle = () => {
+    const div = marqueeDivRef.current;
+    if (!div) return;
+    const rect = marqueeRectRef.current;
+    const containerEl = containerRef.current;
+    if (!rect || !containerEl) {
+      div.style.display = "none";
+      return;
+    }
+    const containerRect = containerEl.getBoundingClientRect();
+    div.style.display = "block";
+    div.style.left = `${rect.x - containerRect.left}px`;
+    div.style.top = `${rect.y - containerRect.top}px`;
+    div.style.width = `${rect.width}px`;
+    div.style.height = `${rect.height}px`;
+  };
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+
   useEffect(() => {
     const prevIds = prevAssetIdsRef.current;
-    const currentIds = assets.map((a) => a.id);
+    const currentIds = assets.map((item) => item.id);
 
     if (prevIds.length > 0 && prevIds.length === currentIds.length) {
       const prevSet = new Set(prevIds);
@@ -169,12 +319,12 @@ export function CanvasView({
       const added = currentIds.filter((id) => !prevSet.has(id));
 
       if (removed.length === 1 && added.length === 1) {
-        const pos = localPositionsRef.current.get(removed[0]);
-        if (pos) {
-          localPositionsRef.current.set(added[0], pos);
+        const position = localPositionsRef.current.get(removed[0]);
+        if (position) {
+          localPositionsRef.current.set(added[0], position);
           localPositionsRef.current.delete(removed[0]);
         }
-        // Migrate selection too
+
         if (selectedIdsRef.current.has(removed[0])) {
           setSelectedIds((prev) => {
             const next = new Set(prev);
@@ -190,13 +340,16 @@ export function CanvasView({
   }, [assets]);
 
   const batchUpdate = useMutation(
-    trpc.canvasAssets.batchUpdatePositions.mutationOptions({})
+    trpc.items.batchUpdateCanvasLayout.mutationOptions({})
   );
 
   const flushUpdates = useCallback(() => {
     if (pendingUpdatesRef.current.size === 0) return;
     const updates = Array.from(pendingUpdatesRef.current.entries()).map(
-      ([id, pos]) => ({ id, ...pos })
+      ([id, pos]) => ({
+        id,
+        ...pos,
+      })
     );
     pendingUpdatesRef.current.clear();
     batchUpdate.mutate(updates);
@@ -207,9 +360,8 @@ export function CanvasView({
     debounceRef.current = setTimeout(flushUpdates, 1000);
   }, [flushUpdates]);
 
-  // Auto-layout for assets without canvas coordinates
   const getAssetPosition = useCallback(
-    (asset: CanvasAssetType, index: number) => {
+    (asset: ItemRecord, index: number) => {
       const local = localPositionsRef.current.get(asset.id);
       if (local) return local;
 
@@ -227,191 +379,242 @@ export function CanvasView({
         };
       }
 
-      const natural = naturalDimensions.get(asset.id);
-      const w = DEFAULT_ASSET_WIDTH;
-      const h = natural ? Math.round(w * (natural.height / natural.width)) : w;
+      const defaultSize = getCanvasNodeSize(asset);
 
-      const cols = 4;
-      const gap = 20;
-      const col = index % cols;
-      const row = Math.floor(index / cols);
+      if (isMediaItem(asset)) {
+        const natural = naturalDimensions.get(asset.id);
+        const width = defaultSize.width;
+        const height = natural
+          ? Math.round(width * (natural.height / natural.width))
+          : width;
+        const col = index % AUTO_LAYOUT_COLUMNS;
+        const row = Math.floor(index / AUTO_LAYOUT_COLUMNS);
+
+        return {
+          x: col * (width + AUTO_LAYOUT_GAP) + AUTO_LAYOUT_GAP,
+          y: row * (height + AUTO_LAYOUT_GAP) + AUTO_LAYOUT_GAP,
+          width,
+          height,
+        };
+      }
+
+      const col = index % AUTO_LAYOUT_COLUMNS;
+      const row = Math.floor(index / AUTO_LAYOUT_COLUMNS);
       return {
-        x: col * (w + gap) + gap,
-        y: row * (h + gap) + gap,
-        width: w,
-        height: h,
+        x: col * (defaultSize.width + AUTO_LAYOUT_GAP) + AUTO_LAYOUT_GAP,
+        y: row * (defaultSize.height + AUTO_LAYOUT_GAP) + AUTO_LAYOUT_GAP,
+        width: defaultSize.width,
+        height: defaultSize.height,
       };
     },
     [naturalDimensions]
   );
 
-  // Scroll to pan, pinch to zoom (like Excalidraw)
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const element = containerRef.current;
+    if (!element) return;
 
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
 
-      if (e.ctrlKey || e.metaKey) {
-        // Pinch-to-zoom (trackpad pinch sends ctrlKey + wheel)
-        const rect = el.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+      if (event.ctrlKey || event.metaKey) {
+        const rect = element.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        const delta = event.deltaY > 0 ? 0.9 : 1.1;
+        const currentScale = scaleRef.current;
+        const newScale = Math.min(3, Math.max(0.1, currentScale * delta));
+        const scaleChange = newScale / currentScale;
 
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        const newScale = Math.min(3, Math.max(0.1, scale * delta));
-        const scaleChange = newScale / scale;
+        translateRef.current = {
+          x: mouseX - scaleChange * (mouseX - translateRef.current.x),
+          y: mouseY - scaleChange * (mouseY - translateRef.current.y),
+        };
+        scaleRef.current = newScale;
+        applyTransform();
+        scheduleScaleSync();
+        return;
+      }
 
-        setTranslate((prev) => ({
-          x: mouseX - scaleChange * (mouseX - prev.x),
-          y: mouseY - scaleChange * (mouseY - prev.y),
-        }));
-        setScale(newScale);
-      } else {
-        // Normal scroll → pan
-        setTranslate((prev) => ({
-          x: prev.x - e.deltaX,
-          y: prev.y - e.deltaY,
-        }));
+      translateRef.current = {
+        x: translateRef.current.x - event.deltaX,
+        y: translateRef.current.y - event.deltaY,
+      };
+      applyTransform();
+    };
+
+    element.addEventListener("wheel", handleWheel, { passive: false });
+    return () => element.removeEventListener("wheel", handleWheel);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.metaKey && !event.ctrlKey) return;
+      if (event.key === "=" || event.key === "+") {
+        event.preventDefault();
+        scaleRef.current = Math.min(3, scaleRef.current * 1.1);
+        applyTransform();
+        scheduleScaleSync();
+      } else if (event.key === "-") {
+        event.preventDefault();
+        scaleRef.current = Math.max(0.1, scaleRef.current * 0.9);
+        applyTransform();
+        scheduleScaleSync();
+      } else if (event.key === "0") {
+        event.preventDefault();
+        scaleRef.current = 1;
+        translateRef.current = { x: 0, y: 0 };
+        applyTransform();
+        scheduleScaleSync();
       }
     };
 
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
-  }, [scale]);
-
-  // Cmd+/- keyboard zoom
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!e.metaKey && !e.ctrlKey) return;
-      if (e.key === "=" || e.key === "+") {
-        e.preventDefault();
-        setScale((s) => Math.min(3, s * 1.1));
-      } else if (e.key === "-") {
-        e.preventDefault();
-        setScale((s) => Math.max(0.1, s * 0.9));
-      } else if (e.key === "0") {
-        e.preventDefault();
-        setScale(1);
-        setTranslate({ x: 0, y: 0 });
-      }
-    };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Pan + marquee with mouse drag on background
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const element = containerRef.current;
+    if (!element || isPublic) return;
 
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target !== el && target !== canvasLayerRef.current) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target !== element && target !== canvasLayerRef.current) return;
 
-      if (e.shiftKey) {
-        // Start marquee
+      if (event.shiftKey) {
         isMarqueeRef.current = true;
-        marqueeStartRef.current = { x: e.clientX, y: e.clientY };
-        setMarqueeRect({ x: e.clientX, y: e.clientY, width: 0, height: 0 });
-        el.style.cursor = "crosshair";
-      } else {
-        // Pan — also clear selection
-        setSelectedIds(new Set());
-        isPanningRef.current = true;
-        panStartRef.current = { x: e.clientX, y: e.clientY };
-        translateStartRef.current = { ...translate };
-        el.style.cursor = "grabbing";
+        marqueeStartRef.current = { x: event.clientX, y: event.clientY };
+        marqueeRectRef.current = {
+          x: event.clientX,
+          y: event.clientY,
+          width: 0,
+          height: 0,
+        };
+        applyMarqueeStyle();
+        element.style.cursor = "crosshair";
+        return;
       }
+
+      setSelectedIds(new Set());
+      isPanningRef.current = true;
+      panStartRef.current = { x: event.clientX, y: event.clientY };
+      translateStartRef.current = { ...translateRef.current };
+      element.style.cursor = "grabbing";
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isMarqueeRef.current) {
-        const sx = marqueeStartRef.current.x;
-        const sy = marqueeStartRef.current.y;
-        const cx = e.clientX;
-        const cy = e.clientY;
-        const rect = {
-          x: Math.min(sx, cx),
-          y: Math.min(sy, cy),
-          width: Math.abs(cx - sx),
-          height: Math.abs(cy - sy),
-        };
-        setMarqueeRect(rect);
+    const runMarqueeFrame = () => {
+      marqueeRafRef.current = null;
+      if (!isMarqueeRef.current) return;
+      const last = marqueeLatestEventRef.current;
+      if (!last) return;
 
-        // Live highlight: compute selection during drag
-        if (rect.width > 3 || rect.height > 3) {
-          const containerRect = el.getBoundingClientRect();
-          const toCanvas = (screenX: number, screenY: number) => ({
-            x: (screenX - containerRect.left - translate.x) / scale,
-            y: (screenY - containerRect.top - translate.y) / scale,
-          });
-          const topLeft = toCanvas(rect.x, rect.y);
-          const bottomRight = toCanvas(
-            rect.x + rect.width,
-            rect.y + rect.height
-          );
-          const marqueeCanvas = {
-            x: topLeft.x,
-            y: topLeft.y,
-            width: bottomRight.x - topLeft.x,
-            height: bottomRight.y - topLeft.y,
-          };
-          const newSelected = new Set<string>();
-          assets.forEach((asset, index) => {
-            const pos = getAssetPosition(asset, index);
-            if (
-              pos.x < marqueeCanvas.x + marqueeCanvas.width &&
-              pos.x + pos.width > marqueeCanvas.x &&
-              pos.y < marqueeCanvas.y + marqueeCanvas.height &&
-              pos.y + pos.height > marqueeCanvas.y
-            ) {
-              newSelected.add(asset.id);
-            }
-          });
-          setSelectedIds(newSelected);
+      const sx = marqueeStartRef.current.x;
+      const sy = marqueeStartRef.current.y;
+      const rect = {
+        x: Math.min(sx, last.x),
+        y: Math.min(sy, last.y),
+        width: Math.abs(last.x - sx),
+        height: Math.abs(last.y - sy),
+      };
+      marqueeRectRef.current = rect;
+      applyMarqueeStyle();
+
+      if (rect.width <= 3 && rect.height <= 3) return;
+
+      const containerRect = element.getBoundingClientRect();
+      const currentScale = scaleRef.current;
+      const currentTranslate = translateRef.current;
+      const toCanvas = (screenX: number, screenY: number) => ({
+        x: (screenX - containerRect.left - currentTranslate.x) / currentScale,
+        y: (screenY - containerRect.top - currentTranslate.y) / currentScale,
+      });
+      const topLeft = toCanvas(rect.x, rect.y);
+      const bottomRight = toCanvas(rect.x + rect.width, rect.y + rect.height);
+      const mx = topLeft.x;
+      const my = topLeft.y;
+      const mw = bottomRight.x - topLeft.x;
+      const mh = bottomRight.y - topLeft.y;
+
+      const nextSelected = new Set<string>();
+      assets.forEach((asset, index) => {
+        const position = getAssetPosition(asset, index);
+        if (
+          position.x < mx + mw &&
+          position.x + position.width > mx &&
+          position.y < my + mh &&
+          position.y + position.height > my
+        ) {
+          nextSelected.add(asset.id);
+        }
+      });
+
+      const prev = selectedIdsRef.current;
+      if (prev.size === nextSelected.size) {
+        let same = true;
+        for (const id of nextSelected) {
+          if (!prev.has(id)) {
+            same = false;
+            break;
+          }
+        }
+        if (same) return;
+      }
+      setSelectedIds(nextSelected);
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (isMarqueeRef.current) {
+        marqueeLatestEventRef.current = { x: event.clientX, y: event.clientY };
+        if (marqueeRafRef.current === null) {
+          marqueeRafRef.current = requestAnimationFrame(runMarqueeFrame);
         }
         return;
       }
+
       if (!isPanningRef.current) return;
-      const dx = e.clientX - panStartRef.current.x;
-      const dy = e.clientY - panStartRef.current.y;
-      setTranslate({
+      const dx = event.clientX - panStartRef.current.x;
+      const dy = event.clientY - panStartRef.current.y;
+      translateRef.current = {
         x: translateStartRef.current.x + dx,
         y: translateStartRef.current.y + dy,
-      });
+      };
+      applyTransform();
     };
 
     const handleMouseUp = () => {
       if (isMarqueeRef.current) {
         isMarqueeRef.current = false;
-        el.style.cursor = "grab";
-        setMarqueeRect(null);
+        if (marqueeRafRef.current !== null) {
+          cancelAnimationFrame(marqueeRafRef.current);
+          marqueeRafRef.current = null;
+        }
+        marqueeLatestEventRef.current = null;
+        marqueeRectRef.current = null;
+        applyMarqueeStyle();
+        element.style.cursor = "grab";
         return;
       }
 
       if (isPanningRef.current) {
         isPanningRef.current = false;
-        el.style.cursor = "grab";
+        element.style.cursor = "grab";
       }
     };
 
-    el.addEventListener("mousedown", handleMouseDown);
+    element.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      el.removeEventListener("mousedown", handleMouseDown);
+      element.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [translate, scale, assets, getAssetPosition]);
+  }, [assets, getAssetPosition, isPublic]);
 
-  // Escape to clear selection
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
         setSelectedIds(new Set());
       }
     };
@@ -419,19 +622,34 @@ export function CanvasView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const handlePrimaryAction = useCallback(
+    (asset: ItemRecord) => {
+      if (asset.type === "color") {
+        copyItemValue(asset);
+        return;
+      }
+
+      if (isMediaItem(asset)) {
+        onPreview?.(asset);
+        return;
+      }
+
+      if (asset.url) {
+        window.open(asset.url, "_blank");
+      }
+    },
+    [onPreview]
+  );
+
   return (
     <div
       ref={containerRef}
       className="relative w-full overflow-hidden"
-      style={{
-        height: "100%",
-        cursor: "grab",
-      }}
+      style={{ height: "100%", cursor: isPublic ? "default" : "grab" }}
     >
       <div
         ref={canvasLayerRef}
         style={{
-          transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           transformOrigin: "0 0",
           position: "absolute",
           top: 0,
@@ -441,43 +659,66 @@ export function CanvasView({
         }}
       >
         {assets.map((asset, index) => {
-          const pos = getAssetPosition(asset, index);
+          const position = getAssetPosition(asset, index);
           const isActionPending = pendingAssetIds?.has(asset.id) ?? false;
           const isSelected = selectedIds.has(asset.id);
-          const isFollower =
-            multiDragLeaderRef.current !== null &&
-            multiDragLeaderRef.current !== asset.id &&
-            isSelected;
+          const canResize = !isPublic && isMediaItem(asset);
+
+          const node = (
+            <div
+              className={`h-full w-full overflow-hidden border border-border/40 bg-card shadow-sm transition-colors ${
+                rounded ? "rounded-md" : "rounded-none"
+              } ${isActionPending ? "opacity-70" : ""}`}
+              onClick={(event) => {
+                if (!dragMovedRef.current.get(asset.id) && !event.shiftKey) {
+                  handlePrimaryAction(asset);
+                }
+              }}
+            >
+              {isMediaItem(asset) ? (
+                <AssetMedia
+                  asset={asset}
+                  rounded={rounded}
+                  className="pointer-events-none"
+                  mediaClassName="select-none"
+                />
+              ) : asset.type === "color" ? (
+                <CanvasColorCard item={asset} rounded={rounded} />
+              ) : (
+                <CanvasLinkCard item={asset} rounded={rounded} />
+              )}
+            </div>
+          );
 
           return (
             <Rnd
               key={asset.id}
+              ref={(node) => {
+                if (node) rndRefs.current.set(asset.id, node);
+                else rndRefs.current.delete(asset.id);
+              }}
               style={{
                 zIndex: asset.canvasZIndex,
                 outline: isSelected ? "2px solid var(--primary)" : undefined,
                 outlineOffset: isSelected ? "2px" : undefined,
                 borderRadius: rounded ? "0.5rem" : undefined,
               }}
-              position={isFollower ? { x: pos.x, y: pos.y } : undefined}
-              size={
-                isFollower
-                  ? { width: pos.width, height: pos.height }
-                  : undefined
-              }
               default={{
-                x: pos.x,
-                y: pos.y,
-                width: pos.width,
-                height: pos.height,
+                x: position.x,
+                y: position.y,
+                width: position.width,
+                height: position.height,
               }}
-              minWidth={MIN_SIZE}
-              minHeight={MIN_SIZE}
-              lockAspectRatio
+              minWidth={canResize ? MIN_SIZE : position.width}
+              minHeight={canResize ? MIN_SIZE : position.height}
+              lockAspectRatio={canResize}
+              enableResizing={canResize}
+              disableDragging={isPublic}
               scale={scale}
-              onMouseDown={(e: MouseEvent) => {
-                if (e.shiftKey) {
-                  // Toggle selection
-                  e.stopPropagation();
+              onMouseDown={(event: MouseEvent) => {
+                if (isPublic) return;
+                if (event.shiftKey) {
+                  event.stopPropagation();
                   setSelectedIds((prev) => {
                     const next = new Set(prev);
                     if (next.has(asset.id)) {
@@ -488,24 +729,24 @@ export function CanvasView({
                     return next;
                   });
                 } else if (!selectedIdsRef.current.has(asset.id)) {
-                  // Click on unselected asset → select only it
                   setSelectedIds(new Set([asset.id]));
                 }
               }}
-              onDragStart={(_e, _d) => {
+              onDragStart={() => {
+                if (isPublic) return;
                 dragMovedRef.current.set(asset.id, false);
-                const sel = selectedIdsRef.current;
-                if (sel.has(asset.id) && sel.size > 1) {
-                  // This asset is the drag leader
+                const selected = selectedIdsRef.current;
+                if (selected.has(asset.id) && selected.size > 1) {
                   multiDragLeaderRef.current = asset.id;
-                  // Snapshot all selected positions
                   const snapshot = new Map<
                     string,
                     { x: number; y: number; width: number; height: number }
                   >();
-                  assets.forEach((a, i) => {
-                    if (sel.has(a.id)) {
-                      snapshot.set(a.id, { ...getAssetPosition(a, i) });
+                  assets.forEach((currentAsset, currentIndex) => {
+                    if (selected.has(currentAsset.id)) {
+                      snapshot.set(currentAsset.id, {
+                        ...getAssetPosition(currentAsset, currentIndex),
+                      });
                     }
                   });
                   multiDragStartPositionsRef.current = snapshot;
@@ -513,69 +754,67 @@ export function CanvasView({
                   multiDragLeaderRef.current = null;
                 }
               }}
-              onDrag={(_e, d) => {
+              onDrag={(_event, data) => {
+                if (isPublic) return;
                 dragMovedRef.current.set(asset.id, true);
                 if (multiDragLeaderRef.current !== asset.id) return;
-                const startPos = multiDragStartPositionsRef.current.get(
+                const leaderStart = multiDragStartPositionsRef.current.get(
                   asset.id
                 );
-                if (!startPos) return;
+                if (!leaderStart) return;
 
-                const dx = d.x - startPos.x;
-                const dy = d.y - startPos.y;
+                const dx = data.x - leaderStart.x;
+                const dy = data.y - leaderStart.y;
 
-                // Move all followers
-                multiDragStartPositionsRef.current.forEach((origPos, id) => {
-                  if (id === asset.id) return; // leader is moved by Rnd
-                  localPositionsRef.current.set(id, {
-                    x: origPos.x + dx,
-                    y: origPos.y + dy,
-                    width: origPos.width,
-                    height: origPos.height,
-                  });
-                });
-                setRenderTick((t) => t + 1);
+                multiDragStartPositionsRef.current.forEach(
+                  (originalPosition, id) => {
+                    if (id === asset.id) return;
+                    rndRefs.current.get(id)?.updatePosition({
+                      x: originalPosition.x + dx,
+                      y: originalPosition.y + dy,
+                    });
+                  }
+                );
               }}
-              onDragStop={(_e, d) => {
+              onDragStop={(_event, data) => {
+                if (isPublic) return;
+
                 if (multiDragLeaderRef.current === asset.id) {
-                  // Persist leader
                   const leaderStart = multiDragStartPositionsRef.current.get(
                     asset.id
                   );
                   if (leaderStart) {
-                    const dx = d.x - leaderStart.x;
-                    const dy = d.y - leaderStart.y;
+                    const dx = data.x - leaderStart.x;
+                    const dy = data.y - leaderStart.y;
 
-                    // Persist leader
                     localPositionsRef.current.set(asset.id, {
-                      x: d.x,
-                      y: d.y,
+                      x: data.x,
+                      y: data.y,
                       width: leaderStart.width,
                       height: leaderStart.height,
                     });
                     pendingUpdatesRef.current.set(asset.id, {
-                      canvasX: d.x,
-                      canvasY: d.y,
+                      canvasX: data.x,
+                      canvasY: data.y,
                       canvasWidth: leaderStart.width,
                       canvasHeight: leaderStart.height,
                     });
 
-                    // Persist followers
                     multiDragStartPositionsRef.current.forEach(
-                      (origPos, id) => {
+                      (originalPosition, id) => {
                         if (id === asset.id) return;
-                        const newPos = {
-                          x: origPos.x + dx,
-                          y: origPos.y + dy,
-                          width: origPos.width,
-                          height: origPos.height,
+                        const nextPosition = {
+                          x: originalPosition.x + dx,
+                          y: originalPosition.y + dy,
+                          width: originalPosition.width,
+                          height: originalPosition.height,
                         };
-                        localPositionsRef.current.set(id, newPos);
+                        localPositionsRef.current.set(id, nextPosition);
                         pendingUpdatesRef.current.set(id, {
-                          canvasX: newPos.x,
-                          canvasY: newPos.y,
-                          canvasWidth: newPos.width,
-                          canvasHeight: newPos.height,
+                          canvasX: nextPosition.x,
+                          canvasY: nextPosition.y,
+                          canvasWidth: nextPosition.width,
+                          canvasHeight: nextPosition.height,
                         });
                       }
                     );
@@ -584,104 +823,87 @@ export function CanvasView({
                   multiDragLeaderRef.current = null;
                   multiDragStartPositionsRef.current.clear();
                   scheduleFlush();
-                } else {
-                  // Single asset drag
-                  const updated = {
-                    x: d.x,
-                    y: d.y,
-                    width: pos.width,
-                    height: pos.height,
-                  };
-                  localPositionsRef.current.set(asset.id, updated);
-                  pendingUpdatesRef.current.set(asset.id, {
-                    canvasX: d.x,
-                    canvasY: d.y,
-                    canvasWidth: pos.width,
-                    canvasHeight: pos.height,
-                  });
-                  scheduleFlush();
+                  return;
                 }
-              }}
-              onResizeStop={(_e, _dir, ref, _delta, position) => {
-                const w = parseFloat(ref.style.width);
-                const h = parseFloat(ref.style.height);
-                const updated = {
-                  x: position.x,
-                  y: position.y,
-                  width: w,
-                  height: h,
+
+                const updatedPosition = {
+                  x: data.x,
+                  y: data.y,
+                  width: position.width,
+                  height: position.height,
                 };
-                localPositionsRef.current.set(asset.id, updated);
+                localPositionsRef.current.set(asset.id, updatedPosition);
                 pendingUpdatesRef.current.set(asset.id, {
-                  canvasX: position.x,
-                  canvasY: position.y,
-                  canvasWidth: w,
-                  canvasHeight: h,
+                  canvasX: data.x,
+                  canvasY: data.y,
+                  canvasWidth: position.width,
+                  canvasHeight: position.height,
                 });
                 scheduleFlush();
               }}
+              onResizeStop={
+                canResize
+                  ? (_event, _direction, ref, _delta, nextPosition) => {
+                      const width = parseFloat(ref.style.width);
+                      const height = parseFloat(ref.style.height);
+                      const updatedPosition = {
+                        x: nextPosition.x,
+                        y: nextPosition.y,
+                        width,
+                        height,
+                      };
+                      localPositionsRef.current.set(asset.id, updatedPosition);
+                      pendingUpdatesRef.current.set(asset.id, {
+                        canvasX: nextPosition.x,
+                        canvasY: nextPosition.y,
+                        canvasWidth: width,
+                        canvasHeight: height,
+                      });
+                      scheduleFlush();
+                    }
+                  : undefined
+              }
               className="group"
             >
-              <ContextMenu>
-                <ContextMenuTrigger className="w-full h-full">
-                  <div
-                    className={`w-full h-full ${
-                      rounded ? "rounded-md" : ""
-                    } overflow-hidden group-hover:border-primary/40 transition-colors shadow-sm cursor-pointer`}
-                    onClick={(e) => {
-                      if (!dragMovedRef.current.get(asset.id) && !e.shiftKey) {
-                        onPreview?.(asset);
-                      }
-                    }}
-                  >
-                    <AssetMedia
-                      asset={asset}
-                      rounded={rounded}
-                      className="pointer-events-none"
-                      mediaClassName="select-none"
-                    />
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-44">
-                  {onUpdateZIndex && (
-                    <>
-                      <ContextMenuItem
-                        className="flex items-center gap-2"
-                        disabled={asset._temp}
-                        onClick={() => {
-                          const maxZ = Math.max(
-                            ...assets.map((a) => a.canvasZIndex)
-                          );
-                          if (asset.canvasZIndex < maxZ) {
-                            onUpdateZIndex([
-                              { id: asset.id, canvasZIndex: maxZ + 1 },
-                            ]);
-                          }
-                        }}
-                      >
-                        <ArrowUpFromLine className="size-3.5 text-neutral-500 stroke-[1.5]" />
-                        Bring to Front
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        className="flex items-center gap-2"
-                        disabled={asset._temp}
-                        onClick={() => {
-                          const sorted = [...assets].sort(
-                            (a, b) => a.canvasZIndex - b.canvasZIndex
-                          );
-                          const idx = sorted.findIndex(
-                            (a) => a.id === asset.id
-                          );
-                          if (idx < sorted.length - 1) {
-                            const next = sorted[idx + 1];
-                            if (next.canvasZIndex === asset.canvasZIndex) {
+              {isPublic ? (
+                node
+              ) : (
+                <ContextMenu>
+                  <ContextMenuTrigger className="h-full w-full">
+                    {node}
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48">
+                    {onUpdateZIndex && (
+                      <>
+                        <ContextMenuItem
+                          className="flex items-center gap-2"
+                          disabled={asset._temp}
+                          onClick={() => {
+                            const maxZ = Math.max(
+                              ...assets.map((entry) => entry.canvasZIndex)
+                            );
+                            if (asset.canvasZIndex < maxZ) {
                               onUpdateZIndex([
-                                {
-                                  id: asset.id,
-                                  canvasZIndex: asset.canvasZIndex + 1,
-                                },
+                                { id: asset.id, canvasZIndex: maxZ + 1 },
                               ]);
-                            } else {
+                            }
+                          }}
+                        >
+                          <ArrowUpFromLine className="size-3.5 text-neutral-500 stroke-[1.5]" />
+                          Bring to front
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          className="flex items-center gap-2"
+                          disabled={asset._temp}
+                          onClick={() => {
+                            const sorted = [...assets].sort(
+                              (a, b) => a.canvasZIndex - b.canvasZIndex
+                            );
+                            const currentIndex = sorted.findIndex(
+                              (entry) => entry.id === asset.id
+                            );
+                            if (currentIndex < sorted.length - 1) {
+                              const next = sorted[currentIndex + 1];
                               onUpdateZIndex([
                                 {
                                   id: asset.id,
@@ -693,228 +915,202 @@ export function CanvasView({
                                 },
                               ]);
                             }
-                          }
-                        }}
-                      >
-                        <ChevronUp className="size-3.5 text-neutral-500 stroke-[1.5]" />
-                        Bring Forward
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        className="flex items-center gap-2"
-                        disabled={asset._temp}
-                        onClick={() => {
-                          const sorted = [...assets].sort(
-                            (a, b) => a.canvasZIndex - b.canvasZIndex
-                          );
-                          const idx = sorted.findIndex(
-                            (a) => a.id === asset.id
-                          );
-                          if (idx > 0) {
-                            const prev = sorted[idx - 1];
-                            if (prev.canvasZIndex === asset.canvasZIndex) {
+                          }}
+                        >
+                          <ChevronUp className="size-3.5 text-neutral-500 stroke-[1.5]" />
+                          Bring forward
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          className="flex items-center gap-2"
+                          disabled={asset._temp}
+                          onClick={() => {
+                            const sorted = [...assets].sort(
+                              (a, b) => a.canvasZIndex - b.canvasZIndex
+                            );
+                            const currentIndex = sorted.findIndex(
+                              (entry) => entry.id === asset.id
+                            );
+                            if (currentIndex > 0) {
+                              const previous = sorted[currentIndex - 1];
                               onUpdateZIndex([
                                 {
                                   id: asset.id,
-                                  canvasZIndex: asset.canvasZIndex - 1,
-                                },
-                              ]);
-                            } else {
-                              onUpdateZIndex([
-                                {
-                                  id: asset.id,
-                                  canvasZIndex: prev.canvasZIndex,
+                                  canvasZIndex: previous.canvasZIndex,
                                 },
                                 {
-                                  id: prev.id,
+                                  id: previous.id,
                                   canvasZIndex: asset.canvasZIndex,
                                 },
                               ]);
                             }
-                          }
-                        }}
-                      >
-                        <ChevronDown className="size-3.5 text-neutral-500 stroke-[1.5]" />
-                        Send Backward
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        className="flex items-center gap-2"
-                        disabled={asset._temp}
-                        onClick={() => {
-                          const minZ = Math.min(
-                            ...assets.map((a) => a.canvasZIndex)
-                          );
-                          if (asset.canvasZIndex > minZ) {
-                            onUpdateZIndex([
-                              { id: asset.id, canvasZIndex: minZ - 1 },
-                            ]);
-                          }
-                        }}
-                      >
-                        <ArrowDownToLine className="size-3.5 text-neutral-500 stroke-[1.5]" />
-                        Send to Back
-                      </ContextMenuItem>
-                      <ContextMenuSeparator />
-                    </>
-                  )}
-                  <ContextMenuItem
-                    className="flex items-center gap-2"
-                    onClick={() => window.open(asset.url, "_blank")}
-                  >
-                    <ExternalLink className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
-                    Open in new tab
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="flex items-center gap-2"
-                    onClick={() => {
-                      navigator.clipboard.writeText(asset.url);
-                      toast.custom(
-                        () => (
-                          <div className="flex justify-center mx-auto">
-                            <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-                              <CircleCheckIcon
-                                className="size-3.5 text-green-400 dark:text-green-600"
-                                strokeWidth={2.2}
-                              />
-                              <h1>URL copied to clipboard</h1>
-                            </div>
-                          </div>
-                        ),
-                        { position: "top-center" }
-                      );
-                    }}
-                  >
-                    <CopyIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
-                    Copy URL
-                  </ContextMenuItem>
-                  {asset.assetType === "image" && (
-                    <>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem
-                        className="flex items-center gap-2"
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(asset.url);
-                            const blob = await res.blob();
-                            const pngBlob =
-                              blob.type === "image/png"
-                                ? blob
-                                : await new Promise<Blob>((resolve) => {
-                                    const img = new window.Image();
-                                    img.crossOrigin = "anonymous";
-                                    img.onload = () => {
-                                      const canvas =
-                                        document.createElement("canvas");
-                                      canvas.width = img.naturalWidth;
-                                      canvas.height = img.naturalHeight;
-                                      canvas
-                                        .getContext("2d")!
-                                        .drawImage(img, 0, 0);
-                                      canvas.toBlob(
-                                        (b) => resolve(b!),
-                                        "image/png"
-                                      );
-                                    };
-                                    img.src = asset.url;
-                                  });
-                            await navigator.clipboard.write([
-                              new ClipboardItem({ "image/png": pngBlob }),
-                            ]);
-                            toast.custom(
-                              () => (
-                                <div className="flex justify-center mx-auto">
-                                  <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-                                    <CircleCheckIcon
-                                      className="size-3.5 text-green-400 dark:text-green-600"
-                                      strokeWidth={2.2}
-                                    />
-                                    <h1>Image copied to clipboard</h1>
-                                  </div>
-                                </div>
-                              ),
-                              { position: "top-center" }
-                            );
-                          } catch {
-                            toast.error("Failed to copy image");
-                          }
-                        }}
-                      >
-                        <ImageIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
-                        Copy Image
-                      </ContextMenuItem>
-                    </>
-                  )}
-                  {onMove && !isActionPending && canvasFolders.length > 0 && (
-                    <>
-                      <ContextMenuSeparator />
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger
-                          inset
-                          className="justify-start cursor-pointer"
+                          }}
                         >
-                          <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
-                          Move
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="w-44">
-                          {canvasFolders.map((folder, index) => (
-                            <div key={folder.id}>
-                              <ContextMenuItem
-                                onClick={() => onMove(asset, folder.id)}
-                              >
-                                {folder.icon && <span>{folder.icon}</span>}
-                                {folder.name}
-                              </ContextMenuItem>
-                              {index !== canvasFolders.length - 1 && (
-                                <ContextMenuSeparator />
-                              )}
-                            </div>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                    </>
-                  )}
-                  {onDelete && !isActionPending && (
-                    <>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem
-                        className="flex items-center gap-2 hover:text-destructive focus:text-destructive group"
-                        disabled={asset._temp}
-                        onClick={() => onDelete(asset)}
-                      >
-                        <Trash2 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 group-hover:text-destructive/20 group-focus:text-destructive" />
-                        Delete
-                      </ContextMenuItem>
-                    </>
-                  )}
-                </ContextMenuContent>
-              </ContextMenu>
+                          <ChevronDown className="size-3.5 text-neutral-500 stroke-[1.5]" />
+                          Send backward
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          className="flex items-center gap-2"
+                          disabled={asset._temp}
+                          onClick={() => {
+                            const minZ = Math.min(
+                              ...assets.map((entry) => entry.canvasZIndex)
+                            );
+                            if (asset.canvasZIndex > minZ) {
+                              onUpdateZIndex([
+                                { id: asset.id, canvasZIndex: minZ - 1 },
+                              ]);
+                            }
+                          }}
+                        >
+                          <ArrowDownToLine className="size-3.5 text-neutral-500 stroke-[1.5]" />
+                          Send to back
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                      </>
+                    )}
+
+                    {asset.url && (
+                      <>
+                        <ContextMenuItem
+                          className="flex items-center gap-2"
+                          onClick={() => window.open(asset.url ?? "", "_blank")}
+                        >
+                          <ExternalLink className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+                          Open in new tab
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                      </>
+                    )}
+
+                    <ContextMenuItem
+                      className="flex items-center gap-2"
+                      onClick={() => copyItemValue(asset)}
+                    >
+                      {asset.type === "color" ? (
+                        <Palette className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+                      ) : (
+                        <CopyIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+                      )}
+                      {asset.type === "color" ? "Copy color" : "Copy URL"}
+                    </ContextMenuItem>
+
+                    {asset.type === "image" && asset.url && (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          className="flex items-center gap-2"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(asset.url ?? "");
+                              const blob = await res.blob();
+                              const pngBlob =
+                                blob.type === "image/png"
+                                  ? blob
+                                  : await new Promise<Blob>((resolve) => {
+                                      const image = new window.Image();
+                                      image.crossOrigin = "anonymous";
+                                      image.onload = () => {
+                                        const canvas =
+                                          document.createElement("canvas");
+                                        canvas.width = image.naturalWidth;
+                                        canvas.height = image.naturalHeight;
+                                        canvas
+                                          .getContext("2d")!
+                                          .drawImage(image, 0, 0);
+                                        canvas.toBlob(
+                                          (nextBlob) => resolve(nextBlob!),
+                                          "image/png"
+                                        );
+                                      };
+                                      image.src = asset.url ?? "";
+                                    });
+                              await navigator.clipboard.write([
+                                new ClipboardItem({ "image/png": pngBlob }),
+                              ]);
+                              toast.success("Image copied to clipboard");
+                            } catch {
+                              toast.error("Failed to copy image");
+                            }
+                          }}
+                        >
+                          <ImageIcon className="size-3.5 text-neutral-500 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+                          Copy image
+                        </ContextMenuItem>
+                      </>
+                    )}
+
+                    {onMove &&
+                      !isActionPending &&
+                      availableFolders.length > 0 && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuSub>
+                            <ContextMenuSubTrigger
+                              inset
+                              className="justify-start cursor-pointer"
+                            >
+                              <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
+                              Move
+                            </ContextMenuSubTrigger>
+                            <ContextMenuSubContent className="w-44">
+                              {availableFolders.map((folder, currentIndex) => (
+                                <div key={folder.id}>
+                                  <ContextMenuItem
+                                    onClick={() => onMove(asset, folder.id)}
+                                  >
+                                    {folder.icon && <span>{folder.icon}</span>}
+                                    {folder.name}
+                                  </ContextMenuItem>
+                                  {currentIndex !==
+                                    availableFolders.length - 1 && (
+                                    <ContextMenuSeparator />
+                                  )}
+                                </div>
+                              ))}
+                            </ContextMenuSubContent>
+                          </ContextMenuSub>
+                        </>
+                      )}
+
+                    {onDelete && !isActionPending && (
+                      <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          className="flex items-center gap-2 hover:text-destructive focus:text-destructive group"
+                          disabled={asset._temp}
+                          onClick={() => onDelete(asset)}
+                        >
+                          <Trash2 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 group-hover:text-destructive/20 group-focus:text-destructive" />
+                          Delete
+                        </ContextMenuItem>
+                      </>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              )}
             </Rnd>
           );
         })}
       </div>
 
-      {/* Marquee selection overlay */}
-      {marqueeRect && (
+      {!isPublic && (
         <div
+          ref={marqueeDivRef}
           style={{
             position: "absolute",
-            left:
-              marqueeRect.x -
-              (containerRef.current?.getBoundingClientRect().left ?? 0),
-            top:
-              marqueeRect.y -
-              (containerRef.current?.getBoundingClientRect().top ?? 0),
-            width: marqueeRect.width,
-            height: marqueeRect.height,
+            left: 0,
+            top: 0,
+            width: 0,
+            height: 0,
+            display: "none",
             pointerEvents: "none",
             zIndex: 9999,
           }}
-          className="border border-primary/40 bg-primary/10 rounded-sm"
+          className="rounded-sm border border-primary/40 bg-primary/10"
         />
       )}
 
-      {/* Zoom indicator */}
-      <div className="absolute bottom-4 right-4 bg-popover backdrop-blur-sm text-popover-foreground text-xs px-2.5 py-1 rounded-sm border border-border tabular-nums">
+      <div className="absolute bottom-4 right-4 rounded-sm border border-border bg-popover px-2.5 py-1 text-xs tabular-nums text-popover-foreground backdrop-blur-sm">
         {Math.round(scale * 100)}%
       </div>
     </div>

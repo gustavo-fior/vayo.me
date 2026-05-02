@@ -79,15 +79,11 @@ app.post("/upload-url", async (c) => {
   }
 
   const foundFolder = await db.query.folder.findFirst({
-    where: and(
-      eq(folder.id, folderId),
-      eq(folder.userId, session.user.id),
-      eq(folder.type, "canvas")
-    ),
+    where: and(eq(folder.id, folderId), eq(folder.userId, session.user.id)),
   });
 
   if (!foundFolder) {
-    return c.json({ error: "Canvas folder not found" }, 404);
+    return c.json({ error: "Folder not found" }, 404);
   }
 
   const ext = fileName.split(".").pop() || "bin";

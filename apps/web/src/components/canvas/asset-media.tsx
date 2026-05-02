@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import type { CanvasAssetType } from "./asset-card";
+import type { ItemRecord } from "@/types/items";
 
 export function AssetMedia({
   asset,
@@ -13,7 +13,7 @@ export function AssetMedia({
   sizes = "100vw",
   onDimensions,
 }: {
-  asset: CanvasAssetType;
+  asset: ItemRecord;
   rounded?: boolean;
   className?: string;
   mediaClassName?: string;
@@ -21,7 +21,7 @@ export function AssetMedia({
   onDimensions?: (dimensions: { width: number; height: number }) => void;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const radiusClass = rounded ? "rounded-md" : "rounded-none";
+  const radiusClass = rounded ? "rounded-[3px]" : "rounded-none";
 
   useEffect(() => {
     setIsLoaded(false);
@@ -37,15 +37,15 @@ export function AssetMedia({
     >
       <div
         className={cn(
-          "absolute inset-0 z-0 h-full w-full bg-accent/70 transition-opacity duration-200",
+          "absolute inset-0 z-0 h-full w-full bg-accent/70 transition-opacity duration-75",
           radiusClass,
           isLoaded ? "opacity-0" : "opacity-100"
         )}
       />
 
-      {asset.assetType === "video" ? (
+      {asset.type === "video" ? (
         <video
-          src={asset.url}
+          src={asset.url ?? undefined}
           autoPlay
           loop
           muted
@@ -60,7 +60,7 @@ export function AssetMedia({
           }}
           onError={() => setIsLoaded(true)}
           className={cn(
-            "h-full w-full object-cover transition-opacity duration-200",
+            "h-full w-full object-cover transition-opacity duration-75",
             radiusClass,
             isLoaded ? "opacity-100" : "opacity-0",
             mediaClassName
@@ -68,8 +68,8 @@ export function AssetMedia({
         />
       ) : (
         <Image
-          src={asset.url}
-          alt={asset.originalFilename || "Asset"}
+          src={asset.url ?? ""}
+          alt={asset.originalFilename || asset.title || "Asset"}
           fill
           sizes={sizes}
           onLoad={(event) => {
@@ -81,7 +81,7 @@ export function AssetMedia({
           }}
           onError={() => setIsLoaded(true)}
           className={cn(
-            "object-cover transition-opacity duration-200",
+            "object-cover transition-opacity duration-75",
             radiusClass,
             isLoaded ? "opacity-100" : "opacity-0",
             mediaClassName

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AssetCard, type CanvasAssetType } from "./asset-card";
-import type { Folder } from "@/app/bookmarks/page";
+import type { FolderRecord } from "@/types/items";
 
 export function MasonryGrid({
   assets,
@@ -23,7 +23,7 @@ export function MasonryGrid({
   moreSpace?: boolean;
   rounded?: boolean;
   folderId?: string;
-  folders?: Folder[];
+  folders?: FolderRecord[];
   onDelete?: (asset: CanvasAssetType) => void;
   onMove?: (asset: CanvasAssetType, folderId: string) => void;
   onReorder?: (reorderedAssets: CanvasAssetType[]) => void;

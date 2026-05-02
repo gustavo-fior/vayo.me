@@ -34,7 +34,6 @@ export interface Folder {
   id: string;
   name: string;
   icon: string | null;
-  type: "bookmarks" | "canvas";
 }
 
 export async function getFolders(): Promise<Folder[]> {
@@ -42,7 +41,7 @@ export async function getFolders(): Promise<Folder[]> {
 }
 
 export async function createBookmark(url: string, folderId: string) {
-  return trpcMutation("bookmarks.createBookmark", { url, folderId });
+  return trpcMutation("items.createLink", { url, folderId });
 }
 
 export async function createAsset(
@@ -50,5 +49,5 @@ export async function createAsset(
   folderId: string,
   assetType: "image" | "video"
 ) {
-  return trpcMutation("canvasAssets.createAsset", { url, folderId, assetType });
+  return trpcMutation("items.createAsset", { url, folderId, assetType });
 }

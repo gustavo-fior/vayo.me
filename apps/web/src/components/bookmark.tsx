@@ -1,24 +1,25 @@
 "use client";
 
-import { queryClient, trpc } from "@/utils/trpc";
+import Image from "next/image";
 import { useMutation } from "@tanstack/react-query";
-
-import type { Folder } from "@/app/bookmarks/page";
-import { formatDate } from "@/utils/format-date";
-import { isValidURL } from "@/utils/url-validator";
-import type { BookmarkRecord } from "@/utils/folder-pending-actions";
+import { useEffect, useRef, useState } from "react";
 import {
   CircleCheckIcon,
   CopyIcon,
   FolderOpenIcon,
   Globe,
+  ImageIcon,
   Palette,
   Pencil,
   X,
 } from "lucide-react";
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { queryClient, trpc } from "@/utils/trpc";
+import { formatDate } from "@/utils/format-date";
+import { getGoogleFavicon } from "@/utils/google-favicon";
+import { getItemDomain, getItemSubtitle } from "@/utils/item-display";
+import { isMediaItem, type FolderRecord, type ItemRecord } from "@/types/items";
+import { Input } from "./ui/input";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -29,8 +30,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "./ui/context-menu";
-import { Input } from "./ui/input";
-import { getGoogleFavicon } from "@/utils/google-favicon";
+import { AssetMedia } from "./canvas/asset-media";
 
 export const Bookmark = ({
   bookmark,
@@ -39,14 +39,16 @@ export const Bookmark = ({
   folders,
   onDelete,
   onMove,
+  onPreview,
   isActionPending = false,
 }: {
-  bookmark: BookmarkRecord;
+  bookmark: ItemRecord;
   showOgImage: boolean;
   isPublicPage: boolean;
-  folders: Folder[];
-  onDelete?: (bookmark: BookmarkRecord) => void;
-  onMove?: (bookmark: BookmarkRecord, folderId: string) => void;
+  folders: FolderRecord[];
+  onDelete?: (bookmark: ItemRecord) => void;
+  onMove?: (bookmark: ItemRecord, folderId: string) => void;
+  onPreview?: (bookmark: ItemRecord) => void;
   isActionPending?: boolean;
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,59 +58,59 @@ export const Bookmark = ({
   const [isFaviconUnavailable, setIsFaviconUnavailable] = useState(false);
   const [isDeleteExiting, setIsDeleteExiting] = useState(false);
 
-  const isColor = bookmark.type === "color";
-
   const filteredFolders = folders.filter(
-    (folder) => folder.id !== bookmark.folderId && folder.type === "bookmarks"
+    (folder) => folder.id !== bookmark.folderId
   );
+  const isColor = bookmark.type === "color";
+  const isMedia = isMediaItem(bookmark);
 
   const updateTitle = useMutation(
-    trpc.bookmarks.updateTitle.mutationOptions({
-      onMutate: async ({ id, title: newTitle }) => {
+    trpc.items.updateTitle.mutationOptions({
+      onMutate: async ({ id, title: nextTitle }) => {
         await queryClient.cancelQueries({
-          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+          queryKey: ["items", "folder", bookmark.folderId],
         });
 
-        const previousBookmarks = queryClient.getQueryData([
-          "bookmarks",
-          "getBookmarksByFolderId",
-          bookmark.folderId,
-        ]);
+        const previousEntries = queryClient.getQueriesData({
+          queryKey: ["items", "folder", bookmark.folderId],
+        });
 
-        queryClient.setQueryData(
-          ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-          (old: any) => {
+        previousEntries.forEach(([queryKey, value]) => {
+          queryClient.setQueryData(queryKey, (old: any) => {
             if (!old) return old;
 
-            const newPages = old.pages.map((page: any[]) =>
-              page.map((currentBookmark: any) =>
-                currentBookmark.id === id
-                  ? { ...currentBookmark, title: newTitle }
-                  : currentBookmark
-              )
-            );
+            if (Array.isArray(old)) {
+              return old.map((item) =>
+                item.id === id ? { ...item, title: nextTitle } : item
+              );
+            }
 
-            return {
-              ...old,
-              pages: newPages,
-            };
-          }
-        );
+            if (old.pages) {
+              return {
+                ...old,
+                pages: old.pages.map((page: any[]) =>
+                  page.map((item: any) =>
+                    item.id === id ? { ...item, title: nextTitle } : item
+                  )
+                ),
+              };
+            }
 
-        return { previousBookmarks };
+            return old;
+          });
+        });
+
+        return { previousEntries };
       },
-      onError: (_, __, context) => {
-        if (context?.previousBookmarks) {
-          queryClient.setQueryData(
-            ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
-            context.previousBookmarks
-          );
-        }
+      onError: (_error, _variables, context) => {
+        context?.previousEntries?.forEach(([queryKey, value]) => {
+          queryClient.setQueryData(queryKey, value);
+        });
         setTitle(bookmark.title);
       },
       onSuccess: () => {
         queryClient.invalidateQueries({
-          queryKey: ["bookmarks", "getBookmarksByFolderId", bookmark.folderId],
+          queryKey: ["items", "folder", bookmark.folderId],
         });
         toast.custom(() => (
           <div className="flex justify-center mx-auto">
@@ -165,91 +167,108 @@ export const Bookmark = ({
     }, 160);
   };
 
+  const handlePrimaryAction = () => {
+    if (isEditingTitle) {
+      return;
+    }
+
+    if (isColor && bookmark.color) {
+      navigator.clipboard.writeText(bookmark.color);
+      toast.success("Color copied to clipboard");
+      return;
+    }
+
+    if (isMedia) {
+      onPreview?.(bookmark);
+      return;
+    }
+
+    if (bookmark.url) {
+      window.open(bookmark.url, "_blank");
+    }
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger>
         <div
-          className={`group flex items-center justify-between md:px-2.5 px-1.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-800 rounded-sm ${
-            showOgImage ? "h-16" : "h-12"
+          className={`group flex items-center justify-between rounded-sm md:px-2.5 px-1.5 hover:bg-neutral-200/50 dark:hover:bg-neutral-800 ${
+            showOgImage ? "min-h-16 py-2" : "h-12"
           } ${isEditingTitle ? "cursor-default" : "cursor-pointer"} ${
             isActionPending ? "opacity-70" : ""
           }`}
           onPointerEnter={handlePointerEnter}
           onPointerLeave={handlePointerLeave}
-          onClick={() => {
-            if (isEditingTitle) {
-              return;
-            }
-
-            if (isColor && bookmark.color) {
-              navigator.clipboard.writeText(bookmark.color);
-              toast.custom(() => (
-                <div className="flex justify-center mx-auto">
-                  <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-                    <CircleCheckIcon
-                      className="size-3.5 text-green-400 dark:text-green-600 fill-green-400/20 dark:fill-green-600/30"
-                      strokeWidth={2.2}
-                    />
-                    <h1>Color copied to clipboard</h1>
-                  </div>
-                </div>
-              ));
-            } else if (bookmark.url) {
-              window.open(bookmark.url, "_blank");
-            }
-          }}
+          onClick={handlePrimaryAction}
         >
-          <div className="flex items-center gap-3 w-[calc(100%-4rem)]">
+          <div className="flex w-[calc(100%-4rem)] items-center gap-3">
             {isColor && bookmark.color ? (
               showOgImage ? (
                 <div
-                  className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10 rounded-[3px]"
+                  className="h-10 max-h-10 min-h-10 w-20 max-w-20 min-w-20 rounded-[3px]"
                   style={{ backgroundColor: bookmark.color }}
                 />
               ) : (
                 <div
-                  className="w-4 h-4 min-w-4 min-h-4 rounded-full"
+                  className="h-4 min-h-4 w-4 min-w-4 rounded-full"
                   style={{ backgroundColor: bookmark.color }}
                 />
               )
+            ) : isMedia ? (
+              showOgImage ? (
+                <div className="relative h-10 min-h-10 w-20 min-w-20 overflow-hidden rounded-[3px] border border-border/40 bg-muted/30">
+                  <AssetMedia
+                    asset={bookmark}
+                    rounded
+                    className="absolute inset-0"
+                    mediaClassName="object-cover rounded-[3px]"
+                  />
+                </div>
+              ) : (
+                <div className="relative size-4 min-h-4 min-w-4 overflow-hidden rounded-xs border border-border/40 bg-muted/30">
+                  <AssetMedia
+                    asset={bookmark}
+                    rounded
+                    className="absolute inset-0"
+                    mediaClassName="object-cover rounded-xs"
+                  />
+                </div>
+              )
             ) : (
               <>
-                {bookmark.ogImageUrl &&
-                  showOgImage &&
-                  isValidURL(bookmark.ogImageUrl) && (
-                    <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10">
-                      <Image
-                        src={bookmark.ogImageUrl}
-                        alt="OG Image"
-                        className="rounded-[3px] object-cover h-10 w-20"
-                        width={320}
-                        height={180}
-                        unoptimized
-                      />
-                    </div>
-                  )}
-                {!bookmark.ogImageUrl && showOgImage && (
-                  <div className="w-20 h-10 min-w-20 min-h-10 mr-1 max-w-20 max-h-10 rounded-[3px] bg-muted-foreground/10 flex items-center justify-center">
+                {bookmark.ogImageUrl && showOgImage ? (
+                  <div className="relative h-10 min-h-10 w-20 min-w-20 overflow-hidden rounded-[3px] bg-muted/30">
+                    <Image
+                      src={bookmark.ogImageUrl}
+                      alt="OG image"
+                      width={320}
+                      height={180}
+                      className="h-10 w-20 object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ) : null}
+                {!bookmark.ogImageUrl && showOgImage ? (
+                  <div className="flex h-10 min-h-10 w-20 min-w-20 items-center justify-center rounded-[3px] bg-muted-foreground/10">
                     <Globe className="size-3 text-neutral-300 dark:text-neutral-600" />
                   </div>
-                )}
+                ) : null}
                 {!showOgImage && (
                   <>
                     {bookmark.faviconUrl &&
-                    bookmark.faviconUrl !== "undefined" &&
-                    isValidURL(bookmark.faviconUrl) &&
+                    bookmark.url &&
                     !isFaviconUnavailable ? (
                       <Image
-                        src={getGoogleFavicon(bookmark.url!)}
+                        src={getGoogleFavicon(bookmark.url)}
                         alt="Favicon"
-                        className="w-4 h-4 rounded-xs"
+                        className="h-4 w-4 rounded-xs"
                         width={16}
                         height={16}
                         onError={() => setIsFaviconUnavailable(true)}
                         unoptimized
                       />
                     ) : (
-                      <Globe className="size-4 text-neutral-300 dark:text-neutral-600 min-w-4 min-h-4" />
+                      <Globe className="size-4 min-h-4 min-w-4 text-neutral-300 dark:text-neutral-600" />
                     )}
                   </>
                 )}
@@ -262,28 +281,25 @@ export const Bookmark = ({
               }`}
             >
               {isEditingTitle ? (
-                <div onClick={(e) => e.stopPropagation()} className="w-full">
+                <div
+                  className="w-full"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <Input
                     ref={inputRef}
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full border-none outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 py-0 text-sm font-medium bg-transparent h-5 shadow-none"
+                    onChange={(event) => setTitle(event.target.value)}
+                    className="h-5 w-full border-none bg-transparent px-0 py-0 text-sm font-medium shadow-none outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                     onBlur={() => {
                       setIsEditingTitle(false);
-                      updateTitle.mutate({
-                        id: bookmark.id,
-                        title,
-                      });
+                      updateTitle.mutate({ id: bookmark.id, title });
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
                         setIsEditingTitle(false);
-                        updateTitle.mutate({
-                          id: bookmark.id,
-                          title,
-                        });
+                        updateTitle.mutate({ id: bookmark.id, title });
                       }
-                      if (e.key === "Escape") {
+                      if (event.key === "Escape") {
                         setIsEditingTitle(false);
                         setTitle(bookmark.title);
                       }
@@ -293,29 +309,30 @@ export const Bookmark = ({
                 </div>
               ) : (
                 <p
-                  className={`truncate ${
+                  className={`truncate text-sm font-medium ${
                     showOgImage
-                      ? "md:max-w-[22rem] max-w-[14rem]"
+                      ? "max-w-[14rem] md:max-w-[22rem]"
                       : "max-w-[18rem]"
-                  } inline-block text-sm font-medium`}
+                  }`}
                 >
                   {bookmark.title}
                 </p>
               )}
+
               {!showOgImage && !isEditingTitle && (
-                <span className="text-sm text-muted-foreground/30 hidden md:block">
+                <span className="hidden text-sm text-muted-foreground/30 md:block">
                   •
                 </span>
               )}
+
               <div className="flex items-center gap-1.5">
-                {showOgImage && !isColor && (
+                {showOgImage && !isColor && !isMedia && (
                   <>
                     {bookmark.faviconUrl &&
-                    bookmark.faviconUrl !== "undefined" &&
-                    isValidURL(bookmark.faviconUrl) &&
+                    bookmark.url &&
                     !isFaviconUnavailable ? (
                       <Image
-                        src={getGoogleFavicon(bookmark.url!)}
+                        src={getGoogleFavicon(bookmark.url)}
                         alt="Favicon"
                         className="size-2.5 rounded-xs"
                         width={16}
@@ -338,22 +355,17 @@ export const Bookmark = ({
                         : "md:max-w-[20rem] hidden md:block"
                     }`}
                   >
-                    {isColor
-                      ? bookmark.color
-                      : bookmark.description
-                      ? bookmark.description
-                      : bookmark.url
-                          ?.replace(/^(https?:\/\/)/, "")
-                          .replace(/\/$/, "")}
+                    {getItemSubtitle(bookmark) || getItemDomain(bookmark.url)}
                   </span>
                 )}
               </div>
             </div>
           </div>
+
           {!isPublicPage && (
             <div className="relative hidden min-w-20 justify-end md:flex">
               <span
-                className={`text-xs dark:text-muted-foreground/30 text-muted-foreground/50 tabular-nums text-right transition-all duration-170 ${
+                className={`text-right text-xs tabular-nums text-muted-foreground/50 transition-all duration-170 dark:text-muted-foreground/30 ${
                   isActionPending
                     ? "opacity-100"
                     : "translate-x-0 opacity-100 blur-0 group-hover:translate-x-2 group-hover:opacity-0 group-hover:blur-[4px] group-focus-within:translate-x-2 group-focus-within:opacity-0 group-focus-within:blur-[4px]"
@@ -364,10 +376,10 @@ export const Bookmark = ({
               {!isActionPending && onDelete && (
                 <button
                   type="button"
-                  aria-label="Delete bookmark"
-                  className="absolute right-0 top-1/2 z-10 flex h-8 -translate-y-1/2 translate-x-2 cursor-pointer items-center rounded-sm px-2 text-neutral-500 dark:text-neutral-400 opacity-0 pointer-events-none transition-all duration-150 hover:bg-destructive/5 hover:text-destructive group-hover:translate-x-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto dark:hover:bg-destructive/5"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  aria-label="Delete item"
+                  className="pointer-events-none absolute right-0 top-1/2 z-10 flex h-8 -translate-y-1/2 translate-x-2 cursor-pointer items-center rounded-sm px-2 text-neutral-500 opacity-0 transition-all duration-150 hover:bg-destructive/5 hover:text-destructive group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100 dark:text-neutral-400 dark:hover:bg-destructive/5"
+                  onClick={(event) => {
+                    event.stopPropagation();
                     onDelete(bookmark);
                   }}
                 >
@@ -387,9 +399,7 @@ export const Bookmark = ({
           <>
             <ContextMenuItem
               className="flex items-center gap-2"
-              onClick={() => {
-                setIsEditingTitle(true);
-              }}
+              onClick={() => setIsEditingTitle(true)}
             >
               <Pencil className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
               Edit title
@@ -398,6 +408,7 @@ export const Bookmark = ({
           </>
         )}
         <ContextMenuItem
+          className="flex items-center gap-2"
           onClick={() => {
             const textToCopy = isColor
               ? bookmark.color ?? ""
@@ -415,7 +426,6 @@ export const Bookmark = ({
               </div>
             ));
           }}
-          className="flex items-center gap-2"
         >
           {isColor ? (
             <Palette className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
@@ -424,6 +434,29 @@ export const Bookmark = ({
           )}
           {isColor ? "Copy color" : "Copy link"}
         </ContextMenuItem>
+        {bookmark.type === "image" && bookmark.url && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              className="flex items-center gap-2"
+              onClick={async () => {
+                try {
+                  const res = await fetch(bookmark.url ?? "");
+                  const blob = await res.blob();
+                  await navigator.clipboard.write([
+                    new ClipboardItem({ [blob.type || "image/png"]: blob }),
+                  ]);
+                  toast.success("Image copied to clipboard");
+                } catch {
+                  toast.error("Failed to copy image");
+                }
+              }}
+            >
+              <ImageIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+              Copy image
+            </ContextMenuItem>
+          </>
+        )}
         {!isPublicPage &&
           !isActionPending &&
           onMove &&
@@ -435,16 +468,14 @@ export const Bookmark = ({
                   inset
                   className="justify-start cursor-pointer"
                 >
-                  <FolderOpenIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
+                  <FolderOpenIcon className="mr-2 size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
                   Move
                 </ContextMenuSubTrigger>
                 <ContextMenuSubContent className="w-44">
                   {filteredFolders.map((folder, index) => (
                     <div key={folder.id}>
                       <ContextMenuItem
-                        onClick={() => {
-                          onMove(bookmark, folder.id);
-                        }}
+                        onClick={() => onMove(bookmark, folder.id)}
                       >
                         {folder.icon && <span>{folder.icon}</span>}
                         {folder.name}

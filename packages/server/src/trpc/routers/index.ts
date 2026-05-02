@@ -1,12 +1,10 @@
 import { router } from "../trpc";
 import { foldersRouter } from "./folders";
-import { bookmarksRouter } from "./bookmarks";
-import { canvasAssetsRouter } from "./canvas-assets";
+import { itemsRouter } from "./items";
 
 export const appRouter = router({
   folders: foldersRouter,
-  bookmarks: bookmarksRouter,
-  canvasAssets: canvasAssetsRouter,
+  items: itemsRouter,
 });
 
 export type AppRouter = typeof appRouter;

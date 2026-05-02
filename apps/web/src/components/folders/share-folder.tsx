@@ -1,4 +1,4 @@
-import type { Folder } from "@/app/bookmarks/page";
+import type { FolderRecord } from "@/types/items";
 import { trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -23,8 +23,8 @@ export default function ShareFolder({
   selectedFolder,
   setSelectedFolder,
 }: {
-  selectedFolder: Folder | null;
-  setSelectedFolder: (folder: Folder | null) => void;
+  selectedFolder: FolderRecord | null;
+  setSelectedFolder: (folder: FolderRecord | null) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const updateFolderVisibility = useMutation(

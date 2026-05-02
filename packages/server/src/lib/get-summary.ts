@@ -1,20 +1,17 @@
 import { db } from "@/db";
-import { bookmark } from "@/db/schema";
+import { item } from "@/db/schema";
 import { mergeBookmarkMetadata } from "@/lib/url-metadata";
 import Firecrawl from "@mendable/firecrawl-js";
 import { eq } from "drizzle-orm";
 
 const firecrawl = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
 
-export const updateBookmarkSummary = async (
-  bookmarkId: string,
-  url: string
-) => {
-  const existingBookmark = await db.query.bookmark.findFirst({
-    where: eq(bookmark.id, bookmarkId),
+export const updateLinkSummary = async (itemId: string, url: string) => {
+  const existingItem = await db.query.item.findFirst({
+    where: eq(item.id, itemId),
   });
 
-  if (!existingBookmark) {
+  if (!existingItem || existingItem.type !== "link") {
     return null;
   }
 
@@ -37,10 +34,10 @@ export const updateBookmarkSummary = async (
   const mergedMetadata = mergeBookmarkMetadata(
     url,
     {
-      title: existingBookmark.title,
-      description: existingBookmark.description,
-      faviconUrl: existingBookmark.faviconUrl,
-      ogImageUrl: existingBookmark.ogImageUrl,
+      title: existingItem.title,
+      description: existingItem.description,
+      faviconUrl: existingItem.faviconUrl,
+      ogImageUrl: existingItem.ogImageUrl,
     },
     {
       title:
@@ -62,22 +59,24 @@ export const updateBookmarkSummary = async (
     }
   );
 
-  const bookmarkData = {
-    title: mergedMetadata.title ?? existingBookmark.title ?? "Untitled",
+  const itemData = {
+    title: mergedMetadata.title ?? existingItem.title ?? "Untitled",
     description: mergedMetadata.description,
     faviconUrl: mergedMetadata.faviconUrl,
     ogImageUrl: mergedMetadata.ogImageUrl,
-    summary: scrapeResponse.summary ?? existingBookmark.summary ?? null,
+    summary: scrapeResponse.summary ?? existingItem.summary ?? null,
     updatedAt: new Date(),
   };
 
-  console.log("Updating bookmark summary:");
-  console.log(bookmarkData);
+  console.log("Updating link summary:");
+  console.log(itemData);
 
-  const updatedBookmark = await db
-    .update(bookmark)
-    .set(bookmarkData)
-    .where(eq(bookmark.id, bookmarkId));
+  const updatedItem = await db
+    .update(item)
+    .set(itemData)
+    .where(eq(item.id, itemId));
 
-  return updatedBookmark;
+  return updatedItem;
 };
+
+export const updateBookmarkSummary = updateLinkSummary;

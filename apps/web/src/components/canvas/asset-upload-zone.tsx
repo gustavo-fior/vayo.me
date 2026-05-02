@@ -3,20 +3,137 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import {
-  ImageIcon,
-  Loader2,
-  Upload,
-  Link,
-  ArrowUpIcon,
-  CircleXIcon,
-} from "lucide-react";
+import { Upload, ArrowUpIcon, CircleXIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { isEditableElement } from "@/utils/is-editable-element";
+import type { ItemRecord } from "@/types/items";
+import {
+  canvasItemsQueryKey,
+  gridItemsQueryKey,
+  listItemsQueryKey,
+} from "@/utils/item-query-keys";
+
+function buildTempItem({
+  id,
+  folderId,
+  url,
+  type,
+  mimeType,
+  fileSize,
+  originalFilename,
+}: {
+  id: string;
+  folderId: string;
+  url: string;
+  type: "image" | "video";
+  mimeType?: string | null;
+  fileSize?: number | null;
+  originalFilename?: string | null;
+}): ItemRecord {
+  const now = new Date().toISOString();
+
+  return {
+    id,
+    _temp: true,
+    folderId,
+    createdAt: now,
+    updatedAt: now,
+    type,
+    title:
+      originalFilename ||
+      (type === "image" ? "Untitled image" : "Untitled video"),
+    url,
+    color: null,
+    faviconUrl: null,
+    ogImageUrl: null,
+    description: null,
+    summary: null,
+    mimeType: mimeType ?? null,
+    fileSize: fileSize ?? null,
+    width: null,
+    height: null,
+    originalFilename: originalFilename ?? null,
+    gridSortOrder: -1,
+    canvasX: null,
+    canvasY: null,
+    canvasWidth: null,
+    canvasHeight: null,
+    canvasZIndex: 0,
+  };
+}
+
+function updateInfiniteItemsCache(
+  queryKey: readonly unknown[],
+  updater: (items: any[]) => any[]
+) {
+  queryClient.setQueryData(queryKey, (old: any) => {
+    if (!old) {
+      return {
+        pages: [updater([])],
+        pageParams: [1],
+      };
+    }
+
+    return {
+      ...old,
+      pages: old.pages.map((page: any[], index: number) =>
+        index === 0 ? updater(page) : page
+      ),
+    };
+  });
+}
+
+function insertTempItem(folderId: string, tempItem: ItemRecord) {
+  updateInfiniteItemsCache(listItemsQueryKey(folderId), (items) => [
+    tempItem,
+    ...items,
+  ]);
+  updateInfiniteItemsCache(gridItemsQueryKey(folderId), (items) => [
+    tempItem,
+    ...items,
+  ]);
+  queryClient.setQueryData(canvasItemsQueryKey(folderId), (old: any) => {
+    if (!old) {
+      return [tempItem];
+    }
+
+    return [tempItem, ...old];
+  });
+}
+
+function replaceTempItem(
+  folderId: string,
+  tempId: string,
+  nextItem: ItemRecord
+) {
+  updateInfiniteItemsCache(listItemsQueryKey(folderId), (items) =>
+    items.map((item) => (item.id === tempId ? nextItem : item))
+  );
+  updateInfiniteItemsCache(gridItemsQueryKey(folderId), (items) =>
+    items.map((item) => (item.id === tempId ? nextItem : item))
+  );
+  queryClient.setQueryData(canvasItemsQueryKey(folderId), (old: any) =>
+    Array.isArray(old)
+      ? old.map((item: any) => (item.id === tempId ? nextItem : item))
+      : old
+  );
+}
+
+function removeTempItem(folderId: string, tempId: string) {
+  updateInfiniteItemsCache(listItemsQueryKey(folderId), (items) =>
+    items.filter((item) => item.id !== tempId)
+  );
+  updateInfiniteItemsCache(gridItemsQueryKey(folderId), (items) =>
+    items.filter((item) => item.id !== tempId)
+  );
+  queryClient.setQueryData(canvasItemsQueryKey(folderId), (old: any) =>
+    Array.isArray(old) ? old.filter((item: any) => item.id !== tempId) : old
+  );
+}
 
 export function AssetUploadZone({
   folderId,
@@ -32,9 +149,9 @@ export function AssetUploadZone({
   const dragCounterRef = useRef(0);
 
   const createAsset = useMutation(
-    trpc.canvasAssets.createAsset.mutationOptions({
+    trpc.items.createAsset.mutationOptions({
       onError: () => {
-        toast.error("Failed to create asset");
+        toast.error("Failed to create item");
       },
     })
   );
@@ -51,75 +168,19 @@ export function AssetUploadZone({
         : ("image" as const);
       const previewUrl = URL.createObjectURL(file);
       const tempId = crypto.randomUUID();
-      const now = new Date().toISOString();
+      const tempItem = buildTempItem({
+        id: tempId,
+        folderId,
+        url: previewUrl,
+        type: assetType,
+        mimeType: file.type,
+        fileSize: file.size,
+        originalFilename: file.name,
+      });
 
-      // Immediately insert a fake asset with the blob preview URL
-      queryClient.setQueryData(
-        ["canvasAssets", "getAssetsByFolderId", folderId],
-        (old: any) => {
-          if (!old) {
-            return {
-              pages: [
-                [
-                  {
-                    id: tempId,
-                    _temp: true,
-                    url: previewUrl,
-                    assetType,
-                    mimeType: file.type,
-                    fileSize: file.size,
-                    width: null,
-                    height: null,
-                    originalFilename: file.name,
-                    canvasX: null,
-                    canvasY: null,
-                    canvasWidth: null,
-                    canvasHeight: null,
-                    sortOrder: 0,
-                    folderId,
-                    createdAt: now,
-                    updatedAt: now,
-                  },
-                ],
-              ],
-              pageParams: [1],
-            };
-          }
-          return {
-            ...old,
-            pages: old.pages.map((page: any[], i: number) =>
-              i === 0
-                ? [
-                    {
-                      id: tempId,
-                      _temp: true,
-                      url: previewUrl,
-                      assetType,
-                      mimeType: file.type,
-                      fileSize: file.size,
-                      width: null,
-                      height: null,
-                      originalFilename: file.name,
-                      canvasX: null,
-                      canvasY: null,
-                      canvasWidth: null,
-                      canvasHeight: null,
-                      sortOrder: -1,
-                      folderId,
-                      createdAt: now,
-                      updatedAt: now,
-                    },
-                    ...page,
-                  ]
-                : page
-            ),
-          };
-        }
-      );
+      insertTempItem(folderId, tempItem);
 
-      // Upload in background via signed URL (bypasses Vercel payload limit)
       try {
-        // 1. Get signed upload URL from server
         const urlRes = await fetch(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/api/upload-url`,
           {
@@ -140,13 +201,9 @@ export function AssetUploadZone({
         }
 
         const { signedUrl, publicUrl } = await urlRes.json();
-
-        // 2. Upload file directly to R2
         const uploadRes = await fetch(signedUrl, {
           method: "PUT",
-          headers: {
-            "Content-Type": file.type,
-          },
+          headers: { "Content-Type": file.type },
           body: file,
         });
 
@@ -164,45 +221,34 @@ export function AssetUploadZone({
             originalFilename: file.name,
           },
           {
-            onSuccess: (newAsset) => {
-              // Swap the temp id with the real DB id so delete works
-              queryClient.setQueryData(
-                ["canvasAssets", "getAssetsByFolderId", folderId],
-                (old: any) => {
-                  if (!old) return old;
-                  return {
-                    ...old,
-                    pages: old.pages.map((page: any[]) =>
-                      page.map((a: any) => {
-                        if (a.id !== tempId) return a;
-                        const { _temp, ...rest } = a;
-                        return { ...rest, id: newAsset.id };
-                      })
-                    ),
-                  };
-                }
-              );
+            onSuccess: (newItem) => {
+              replaceTempItem(folderId, tempId, newItem as ItemRecord);
+              void Promise.all([
+                queryClient.invalidateQueries({
+                  queryKey: listItemsQueryKey(folderId),
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: gridItemsQueryKey(folderId),
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: canvasItemsQueryKey(folderId),
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: ["folders", "getFolders"],
+                }),
+              ]);
+            },
+            onError: () => {
+              removeTempItem(folderId, tempId);
             },
           }
         );
-      } catch (err: any) {
-        toast.error(err.message || "Failed to upload file");
-        // Remove the optimistic asset on failure
-        queryClient.setQueryData(
-          ["canvasAssets", "getAssetsByFolderId", folderId],
-          (old: any) => {
-            if (!old) return old;
-            return {
-              ...old,
-              pages: old.pages.map((page: any[]) =>
-                page.filter((a: any) => a.id !== tempId)
-              ),
-            };
-          }
-        );
+      } catch (error: any) {
+        toast.error(error.message || "Failed to upload file");
+        removeTempItem(folderId, tempId);
       }
     },
-    [folderId, createAsset]
+    [createAsset, folderId]
   );
 
   const handleFiles = useCallback(
@@ -212,45 +258,46 @@ export function AssetUploadZone({
     [uploadFile]
   );
 
-  // Global window-level drag events for full-page drop
   useEffect(() => {
-    const hasFiles = (e: DragEvent) =>
-      e.dataTransfer?.types?.includes("Files") ?? false;
+    const hasFiles = (event: DragEvent) =>
+      event.dataTransfer?.types?.includes("Files") ?? false;
 
-    const handleDragEnter = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
+    const handleDragEnter = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
       dragCounterRef.current++;
       if (dragCounterRef.current === 1) {
         setIsDragging(true);
       }
     };
 
-    const handleDragLeave = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
+    const handleDragLeave = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
       dragCounterRef.current--;
       if (dragCounterRef.current === 0) {
         setIsDragging(false);
       }
     };
 
-    const handleDragOver = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
+    const handleDragOver = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
     };
 
-    const handleDrop = (e: DragEvent) => {
-      if (!hasFiles(e)) {
+    const handleDrop = (event: DragEvent) => {
+      if (!hasFiles(event)) {
         dragCounterRef.current = 0;
         setIsDragging(false);
         return;
       }
-      e.preventDefault();
+
+      event.preventDefault();
       dragCounterRef.current = 0;
       setIsDragging(false);
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        handleFiles(e.dataTransfer.files);
+
+      if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+        handleFiles(event.dataTransfer.files);
       }
     };
 
@@ -270,83 +317,43 @@ export function AssetUploadZone({
   const doSubmitUrl = useCallback(
     (url: string, assetType: "image" | "video") => {
       const tempId = crypto.randomUUID();
-      const now = new Date().toISOString();
+      const tempItem = buildTempItem({
+        id: tempId,
+        folderId,
+        url,
+        type: assetType,
+      });
 
-      // Optimistic insert
-      queryClient.setQueryData(
-        ["canvasAssets", "getAssetsByFolderId", folderId],
-        (old: any) => {
-          const tempAsset = {
-            id: tempId,
-            _temp: true,
-            url,
-            assetType,
-            mimeType: null,
-            fileSize: null,
-            width: null,
-            height: null,
-            originalFilename: null,
-            canvasX: null,
-            canvasY: null,
-            canvasWidth: null,
-            canvasHeight: null,
-            sortOrder: -1,
-            canvasZIndex: 0,
-            folderId,
-            createdAt: now,
-            updatedAt: now,
-          };
-          if (!old) {
-            return { pages: [[tempAsset]], pageParams: [1] };
-          }
-          return {
-            ...old,
-            pages: old.pages.map((page: any[], i: number) =>
-              i === 0 ? [tempAsset, ...page] : page
-            ),
-          };
-        }
-      );
+      insertTempItem(folderId, tempItem);
 
       createAsset.mutate(
         { folderId, url, assetType },
         {
-          onSuccess: (newAsset) => {
-            queryClient.setQueryData(
-              ["canvasAssets", "getAssetsByFolderId", folderId],
-              (old: any) => {
-                if (!old) return old;
-                return {
-                  ...old,
-                  pages: old.pages.map((page: any[]) =>
-                    page.map((a: any) => {
-                      if (a.id !== tempId) return a;
-                      const { _temp, ...rest } = a;
-                      return { ...rest, ...newAsset, id: newAsset.id };
-                    })
-                  ),
-                };
-              }
-            );
+          onSuccess: (newItem) => {
+            replaceTempItem(folderId, tempId, newItem as ItemRecord);
+            setUrlInput("");
+            void Promise.all([
+              queryClient.invalidateQueries({
+                queryKey: listItemsQueryKey(folderId),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: gridItemsQueryKey(folderId),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: canvasItemsQueryKey(folderId),
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["folders", "getFolders"],
+              }),
+            ]);
           },
           onError: () => {
-            queryClient.setQueryData(
-              ["canvasAssets", "getAssetsByFolderId", folderId],
-              (old: any) => {
-                if (!old) return old;
-                return {
-                  ...old,
-                  pages: old.pages.map((page: any[]) =>
-                    page.filter((a: any) => a.id !== tempId)
-                  ),
-                };
-              }
-            );
+            removeTempItem(folderId, tempId);
           },
         }
       );
     },
-    [folderId, createAsset]
+    [createAsset, folderId]
   );
 
   const showInvalidUrlError = useCallback((message: string) => {
@@ -397,13 +404,11 @@ export function AssetUploadZone({
       const isImage = imageExts.some((ext) => urlPath.endsWith(ext));
 
       if (!isVideo && !isImage) {
-        // Try to validate by loading as an image
-        const img = new window.Image();
-        img.onload = () => {
+        const image = new window.Image();
+        image.onload = () => {
           doSubmitUrl(url, "image");
         };
-        img.onerror = () => {
-          // Try as video
+        image.onerror = () => {
           const video = document.createElement("video");
           video.onloadedmetadata = () => {
             doSubmitUrl(url, "video");
@@ -413,21 +418,19 @@ export function AssetUploadZone({
           };
           video.src = url;
         };
-        img.src = url;
+        image.src = url;
         setUrlInput("");
         return;
       }
 
-      const assetType = isVideo ? ("video" as const) : ("image" as const);
-      doSubmitUrl(url, assetType);
-      setUrlInput("");
+      doSubmitUrl(url, isVideo ? "video" : "image");
     },
     [doSubmitUrl, showInvalidUrlError]
   );
 
   const handleUrlSubmit = useCallback(() => {
     submitUrl(urlInput);
-  }, [urlInput, submitUrl]);
+  }, [submitUrl, urlInput]);
 
   useEffect(() => {
     const handleWindowPaste = (event: ClipboardEvent) => {
@@ -446,6 +449,27 @@ export function AssetUploadZone({
         return;
       }
 
+      const urlPath = pastedText.toLowerCase().split("?")[0];
+      const isLikelyMediaUrl = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".svg",
+        ".bmp",
+        ".ico",
+        ".avif",
+        ".mp4",
+        ".webm",
+        ".mov",
+        ".ogg",
+      ].some((extension) => urlPath.endsWith(extension));
+
+      if (!isLikelyMediaUrl) {
+        return;
+      }
+
       event.preventDefault();
       submitUrl(pastedText);
     };
@@ -456,7 +480,6 @@ export function AssetUploadZone({
 
   return (
     <>
-      {/* Full-screen drag overlay */}
       <AnimatePresence>
         {isDragging && (
           <motion.div
@@ -464,10 +487,10 @@ export function AssetUploadZone({
             animate={{ opacity: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, filter: "blur(4px)" }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center pointer-events-none"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm pointer-events-none"
           >
             <div className="flex flex-col items-center gap-1">
-              <div className="rounded-full bg-primary/10 p-5 mb-3">
+              <div className="mb-3 rounded-full bg-primary/10 p-5">
                 <Upload className="size-6 text-primary" />
               </div>
               <p className="text-lg font-medium">Drop files to upload</p>
@@ -479,88 +502,78 @@ export function AssetUploadZone({
         )}
       </AnimatePresence>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*,video/*"
         multiple
         className="hidden"
-        onChange={(e) => {
-          if (e.target.files) {
-            handleFiles(e.target.files);
-            e.target.value = "";
+        onChange={(event) => {
+          if (event.target.files) {
+            handleFiles(event.target.files);
+            event.target.value = "";
           }
         }}
       />
 
-      {/* URL input + browse button */}
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 4 }}
-        transition={{ duration: 0.2, ease: "easeInOut", delay: 1 }}
-        className={
-          floating
-            ? "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4"
-            : undefined
-        }
-      >
-        <div
-          className={`flex ${
-            floating
-              ? "bg-neutral-100/90 dark:bg-neutral-900/90 backdrop-blur-[4px] rounded-lg border border-border shadow-lg"
-              : ""
-          }`}
+      {floating && (
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.2, ease: "easeInOut", delay: 1 }}
+          className="fixed bottom-6 left-1/2 z-50 w-full max-w-md -translate-x-1/2 px-4"
         >
-          <div className="relative flex-1">
-            <Input
-              placeholder="Paste image/video link"
-              value={urlInput}
-              style={{ boxShadow: "none" }}
-              className={cn(
-                "rounded-sm border-transparent h-10 dark:border-transparent focus-visible:border-transparent focus-visible:ring-0 bg-transparent text-primary placeholder:text-primary/50",
-                isInvalidUrl &&
-                  "animate-shake border-destructive dark:border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20 focus-visible:ring-2"
-              )}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleUrlSubmit();
-              }}
-              onPaste={(e) => {
-                const pastedText = e.clipboardData.getData("text");
-                if (pastedText.trim()) {
-                  e.preventDefault();
-                  submitUrl(pastedText);
-                }
-              }}
-            />
+          <div className="flex bg-neutral-100/90 dark:bg-neutral-900/90 backdrop-blur-[4px] rounded-lg border border-border shadow-lg">
+            <div className="relative flex-1">
+              <Input
+                placeholder="Paste image/video link"
+                value={urlInput}
+                style={{ boxShadow: "none" }}
+                className={cn(
+                  "rounded-sm border-transparent h-10 dark:border-transparent focus-visible:border-transparent focus-visible:ring-0 bg-transparent text-primary placeholder:text-primary/50",
+                  isInvalidUrl &&
+                    "animate-shake placeholder:text-destructive dark:placeholder:text-destructive text-destructive dark:text-destructive selection:bg-destructive/20 dark:selection:bg-destructive/20 selection:text-destructive dark:selection:text-destructive"
+                )}
+                onChange={(event) => setUrlInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleUrlSubmit();
+                }}
+                onPaste={(event) => {
+                  const pastedText = event.clipboardData.getData("text");
+                  if (pastedText.trim()) {
+                    event.preventDefault();
+                    submitUrl(pastedText);
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleUrlSubmit}
+                style={{ boxShadow: "none" }}
+                disabled={!urlInput.trim() || createAsset.isPending}
+                className="absolute right-0 top-0 z-50 size-10 rounded-l-sm rounded-r-none border-0 duration-200 hover:bg-transparent active:scale-95"
+              >
+                {createAsset.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin stroke-[1.5] text-neutral-500 dark:text-neutral-400" />
+                ) : (
+                  <ArrowUpIcon className="size-3.5 stroke-[1.5]" />
+                )}
+              </Button>
+            </div>
+            <div className="h-10 w-px bg-muted-foreground/20" />
             <Button
               size="sm"
               variant="ghost"
-              onClick={handleUrlSubmit}
-              style={{ boxShadow: "none" }}
-              disabled={!urlInput.trim() || createAsset.isPending}
-              className="size-10 rounded-r-none border-0 absolute right-0 top-0 z-50 rounded-l-sm active:scale-95 duration-200 hover:bg-transparent"
+              onClick={() => fileInputRef.current?.click()}
+              className="size-10 rounded-l-none border-0"
             >
-              {createAsset.isPending ? (
-                <Loader2 className="size-3.5 animate-spin stroke-[1.5] text-neutral-500 dark:text-neutral-400" />
-              ) : (
-                <ArrowUpIcon className="size-3.5 stroke-[1.5]" />
-              )}
+              <Upload className="size-3.5 stroke-[1.5]" />
             </Button>
           </div>
-          <div className="size-10 w-px bg-muted-foreground/20" />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => fileInputRef.current?.click()}
-            className="size-10 gap-1.5 border-0 rounded-l-none"
-          >
-            <Upload className="size-3.5 stroke-[1.5]" />
-          </Button>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </>
   );
 }

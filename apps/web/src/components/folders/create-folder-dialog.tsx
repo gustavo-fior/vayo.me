@@ -19,27 +19,18 @@ import {
   EmojiPickerSearch,
 } from "../ui/emoji-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import {
-  BookmarkIcon,
-  ImageIcon,
-  LayoutPanelLeftIcon,
-  Loader2,
-  PlusIcon,
-} from "lucide-react";
-import type { Folder } from "@/app/bookmarks/page";
+import { Loader2, PlusIcon } from "lucide-react";
+import type { FolderRecord } from "@/types/items";
 
 export const CreateFolderDialog = ({
   setSelectedFolder,
   setSelectOpen,
 }: {
-  setSelectedFolder: (folder: Folder | null) => void;
+  setSelectedFolder: (folder: FolderRecord | null) => void;
   setSelectOpen: (open: boolean) => void | null;
 }) => {
   const [icon, setIcon] = useState("");
   const [name, setName] = useState("");
-  const [folderType, setFolderType] = useState<"bookmarks" | "canvas">(
-    "bookmarks"
-  );
   const [open, setOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
@@ -48,7 +39,6 @@ export const CreateFolderDialog = ({
       onSuccess: (data) => {
         queryClient.invalidateQueries(trpc.folders.getFolders.queryOptions());
         setName("");
-        setFolderType("bookmarks");
         setOpen(false);
         setSelectedFolder({ ...data[0], totalItems: 0 });
         setSelectOpen?.(false);
@@ -67,7 +57,6 @@ export const CreateFolderDialog = ({
         setTimeout(() => {
           setName("");
           setIcon("");
-          setFolderType("bookmarks");
         }, 150);
       }}
     >
@@ -86,46 +75,6 @@ export const CreateFolderDialog = ({
         <DialogHeader>
           <DialogTitle>Create Folder</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-2 my-2">
-          <Button
-            type="button"
-            variant={"outline"}
-            size="sm"
-            className={`flex-1 active:scale-100 h-fit py-5 border-input dark:border-input/50 justify-start focus-visible:ring-0 items-start p-4 w-full ${
-              folderType === "bookmarks" ? "bg-primary/5 dark:bg-primary/5" : ""
-            }`}
-            onClick={() => setFolderType("bookmarks")}
-          >
-            <div className="flex flex-col gap-2.5 text-left justify-start items-start w-fit">
-              <BookmarkIcon className="size-4 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500 dark:text-neutral-400" />
-              <div className="flex flex-col gap-0.5">
-                <p className="text-xs font-semibold">Bookmarks</p>
-                <p className="text-xs text-muted-foreground/50 font-normal">
-                  Organize your links.
-                </p>
-              </div>
-            </div>
-          </Button>
-          <Button
-            type="button"
-            variant={"outline"}
-            size="sm"
-            className={`flex-1 gap-1.5 active:scale-100 h-fit py-5 border-input dark:border-input/50 justify-start focus-visible:ring-0 items-start p-4 w-full ${
-              folderType === "canvas" ? "bg-primary/5 dark:bg-primary/5" : ""
-            }`}
-            onClick={() => setFolderType("canvas")}
-          >
-            <div className="flex flex-col gap-2.5 text-left justify-start items-start w-full max-w-fit">
-              <LayoutPanelLeftIcon className="size-4 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500 dark:text-neutral-400" />
-              <div className="flex flex-col gap-0.5">
-                <p className="text-xs font-semibold">Canvas</p>
-                <p className="text-xs text-muted-foreground/50 font-normal">
-                  Organize your images/videos.
-                </p>
-              </div>
-            </div>
-          </Button>
-        </div>
         <div className="flex items-center gap-2 mb-4">
           <Popover
             onOpenChange={setEmojiPickerOpen}
@@ -179,7 +128,7 @@ export const CreateFolderDialog = ({
           <Button
             onClick={() => {
               if (name) {
-                createFolder.mutate({ name, icon, type: folderType });
+                createFolder.mutate({ name, icon });
               }
             }}
             disabled={createFolder.isPending}

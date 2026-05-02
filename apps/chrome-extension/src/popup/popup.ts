@@ -323,26 +323,24 @@ async function init() {
     }
 
     const assets = pendingTweetAssetsData.assets!;
-    const canvasFolders = folders.filter((f) => f.type === "canvas");
-    if (canvasFolders.length === 0) {
-      showError("No canvas folders found. Create one in VAYØ first.");
+    if (folders.length === 0) {
+      showError("No folders found. Create one in VAYØ first.");
       return;
     }
 
     tweetAssetsCount.textContent = `${assets.length} asset${
       assets.length === 1 ? "" : "s"
     } found`;
-    populateSelect(tweetAssetsFolderSelect, canvasFolders, "lastCanvasFolder");
+    populateSelect(tweetAssetsFolderSelect, folders, "lastFolder");
     renderTweetAssetsGrid(assets);
     showScreen(screenTweetAssets);
   } else if (pendingAsset) {
-    const canvasFolders = folders.filter((f) => f.type === "canvas");
-    if (canvasFolders.length === 0) {
-      showError("No canvas folders found. Create one in VAYØ first.");
+    if (folders.length === 0) {
+      showError("No folders found. Create one in VAYØ first.");
       return;
     }
 
-    populateSelect(assetFolderSelect, canvasFolders, "lastCanvasFolder");
+    populateSelect(assetFolderSelect, folders, "lastFolder");
     btnRemoveAsset.classList.remove("asset-remove-btn-video");
 
     if (pendingAsset.assetType === "video") {
@@ -356,13 +354,12 @@ async function init() {
 
     showScreen(screenAsset);
   } else {
-    const bookmarkFolders = folders.filter((f) => f.type === "bookmarks");
-    if (bookmarkFolders.length === 0) {
-      showError("No bookmark folders found. Create one in VAYØ first.");
+    if (folders.length === 0) {
+      showError("No folders found. Create one in VAYØ first.");
       return;
     }
 
-    populateSelect(bookmarkFolderSelect, bookmarkFolders, "lastBookmarkFolder");
+    populateSelect(bookmarkFolderSelect, folders, "lastFolder");
 
     if (currentPageContext?.url) {
       bookmarkTitle.textContent = currentPageContext.title || "Untitled";
@@ -394,7 +391,7 @@ btnSaveBookmark.addEventListener("click", async () => {
   try {
     await createBookmark(currentPageContext.url, folderId);
     chrome.storage.local.set({
-      lastBookmarkFolder: folderId,
+      lastFolder: folderId,
       popupSourceContext: null,
     });
     showScreen(screenSuccess);
@@ -417,7 +414,7 @@ btnSaveAsset.addEventListener("click", async () => {
     await createAsset(pendingAsset.url, folderId, pendingAsset.assetType);
     chrome.storage.local.remove("pendingAsset");
     chrome.storage.local.set({
-      lastCanvasFolder: folderId,
+      lastFolder: folderId,
       popupSourceContext: null,
     });
     showScreen(screenSuccess);
@@ -466,7 +463,7 @@ btnSaveTweetAssets.addEventListener("click", async () => {
 
     chrome.storage.local.remove("pendingTweetAssets");
     chrome.storage.local.set({
-      lastCanvasFolder: folderId,
+      lastFolder: folderId,
       popupSourceContext: null,
     });
     showScreen(screenSuccess);

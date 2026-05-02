@@ -1,18 +1,4 @@
-import type { CanvasAssetType } from "@/components/canvas/asset-card";
-
-export type BookmarkRecord = {
-  id: string;
-  title: string;
-  description: string | null;
-  faviconUrl: string | null;
-  ogImageUrl: string | null;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  folderId: string;
-  url: string | null;
-  type: "link" | "color";
-  color: string | null;
-};
+import type { ItemRecord } from "@/types/items";
 
 type PendingActionStatus = "pending" | "committing";
 
@@ -24,23 +10,16 @@ type PendingActionBase = {
   status: PendingActionStatus;
 };
 
-export type PendingBookmarkAction = PendingActionBase & {
-  entity: "bookmark";
+export type PendingItemAction = PendingActionBase & {
+  entity: "item";
   operation: "delete" | "move";
-  item: BookmarkRecord;
+  item: ItemRecord;
 };
 
-export type PendingAssetAction = PendingActionBase & {
-  entity: "asset";
-  operation: "delete" | "move";
-  item: CanvasAssetType;
-};
-
-export type PendingFolderAction = PendingBookmarkAction | PendingAssetAction;
-
-function toTimestamp(value: string | Date) {
-  return new Date(value).getTime();
-}
+export type BookmarkRecord = ItemRecord;
+export type PendingBookmarkAction = PendingItemAction;
+export type PendingAssetAction = PendingItemAction;
+export type PendingFolderAction = PendingItemAction;
 
 function uniqueById<T extends { id: string }>(items: T[]) {
   const seen = new Set<string>();
@@ -55,50 +34,16 @@ function uniqueById<T extends { id: string }>(items: T[]) {
   });
 }
 
-export function deriveVisibleBookmarks(
-  bookmarks: BookmarkRecord[],
+export function deriveVisibleItems(
+  items: ItemRecord[],
   folderId: string,
-  actions: PendingBookmarkAction[]
+  actions: PendingItemAction[]
 ) {
-  const hiddenBookmarkIds = new Set(
+  const hiddenItemIds = new Set(
     actions
       .filter(
         (action) =>
-          action.operation === "delete" ||
-          action.sourceFolderId === folderId
-      )
-      .map((action) => action.item.id)
-  );
-
-  const movedIntoFolder = actions
-    .filter(
-      (action) =>
-        action.operation === "move" && action.targetFolderId === folderId
-    )
-    .map((action) => ({
-      ...action.item,
-      folderId,
-      updatedAt: new Date(action.stagedAt).toISOString(),
-    }));
-
-  return uniqueById(
-    [...bookmarks.filter((bookmark) => !hiddenBookmarkIds.has(bookmark.id)), ...movedIntoFolder].sort(
-      (a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt)
-    )
-  );
-}
-
-export function deriveVisibleAssets(
-  assets: CanvasAssetType[],
-  folderId: string,
-  actions: PendingAssetAction[]
-) {
-  const hiddenAssetIds = new Set(
-    actions
-      .filter(
-        (action) =>
-          action.operation === "delete" ||
-          action.sourceFolderId === folderId
+          action.operation === "delete" || action.sourceFolderId === folderId
       )
       .map((action) => action.item.id)
   );
@@ -113,11 +58,16 @@ export function deriveVisibleAssets(
       ...action.item,
       folderId,
       updatedAt: new Date(action.stagedAt).toISOString(),
+      gridSortOrder: -1,
+      canvasX: null,
+      canvasY: null,
+      canvasWidth: null,
+      canvasHeight: null,
     }));
 
   return uniqueById([
     ...movedIntoFolder,
-    ...assets.filter((asset) => !hiddenAssetIds.has(asset.id)),
+    ...items.filter((item) => !hiddenItemIds.has(item.id)),
   ]);
 }
 

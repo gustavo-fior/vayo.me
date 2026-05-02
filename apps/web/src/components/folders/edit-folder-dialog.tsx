@@ -20,15 +20,15 @@ import {
 } from "../ui/emoji-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Loader2, PencilIcon } from "lucide-react";
-import type { Folder } from "@/app/bookmarks/page";
+import type { FolderRecord } from "@/types/items";
 
 export const EditFolderDialog = ({
   folder,
   setSelectedFolder,
   setSelectOpen,
 }: {
-  folder: Folder;
-  setSelectedFolder: (folder: Folder | null) => void;
+  folder: FolderRecord;
+  setSelectedFolder: (folder: FolderRecord | null) => void;
   setSelectOpen: (open: boolean) => void;
 }) => {
   const [icon, setIcon] = useState(folder.icon ?? "");

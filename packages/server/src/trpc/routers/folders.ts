@@ -1,11 +1,10 @@
 import { db } from "@/db";
 import { folder } from "@/db/schema/folder";
-import { bookmark } from "@/db/schema/bookmark";
+import { item } from "@/db/schema/item";
 import { and, asc, count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 import { v7 as uuidv7 } from "uuid";
-import { canvasAsset } from "@/db/schema/canvas-asset";
 
 export const foldersRouter = router({
   getFolders: protectedProcedure.query(async ({ ctx }) => {
@@ -17,14 +16,13 @@ export const foldersRouter = router({
         name: folder.name,
         icon: folder.icon,
         isShared: folder.isShared,
+        defaultView: folder.defaultView,
         type: folder.type,
         userId: folder.userId,
-        totalBookmarks: count(bookmark.id),
-        totalCanvasAssets: count(canvasAsset.id),
+        totalItems: count(item.id),
       })
       .from(folder)
-      .leftJoin(bookmark, eq(folder.id, bookmark.folderId))
-      .leftJoin(canvasAsset, eq(folder.id, canvasAsset.folderId))
+      .leftJoin(item, eq(folder.id, item.folderId))
       .where(eq(folder.userId, ctx.session.user.id))
       .groupBy(
         folder.id,
@@ -33,15 +31,13 @@ export const foldersRouter = router({
         folder.name,
         folder.icon,
         folder.isShared,
+        folder.defaultView,
         folder.type,
         folder.userId
       )
       .orderBy(asc(folder.createdAt));
 
-    return folders.map((folder) => ({
-      ...folder,
-      totalItems: folder.totalBookmarks + folder.totalCanvasAssets,
-    }));
+    return folders;
   }),
   getFolderById: protectedProcedure
     .input(z.string())
@@ -63,7 +59,6 @@ export const foldersRouter = router({
       z.object({
         name: z.string(),
         icon: z.string().optional(),
-        type: z.enum(["bookmarks", "canvas"]).optional().default("bookmarks"),
       })
     )
     .mutation(({ input, ctx }) => {
@@ -94,6 +89,25 @@ export const foldersRouter = router({
       return db
         .update(folder)
         .set({ name: input.name, icon: input.icon ?? null, updatedAt: new Date() })
+        .where(
+          and(eq(folder.id, input.id), eq(folder.userId, ctx.session.user.id))
+        )
+        .returning();
+    }),
+  updateDefaultView: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        defaultView: z.enum(["list", "grid", "canvas"]),
+      })
+    )
+    .mutation(({ input, ctx }) => {
+      return db
+        .update(folder)
+        .set({
+          defaultView: input.defaultView,
+          updatedAt: new Date(),
+        })
         .where(
           and(eq(folder.id, input.id), eq(folder.userId, ctx.session.user.id))
         )

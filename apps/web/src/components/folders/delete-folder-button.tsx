@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { HoldToDeleteButton } from "../ui/hold-button";
-import type { Folder } from "@/app/bookmarks/page";
+import type { FolderRecord } from "@/types/items";
 
 export const DeleteFolderButton = ({
   folderId,
@@ -13,8 +13,8 @@ export const DeleteFolderButton = ({
 }: {
   folderId: string;
   setOpen: (open: boolean) => void;
-  folders: Folder[];
-  setSelectedFolder: (folder: Folder | null) => void;
+  folders: FolderRecord[];
+  setSelectedFolder: (folder: FolderRecord | null) => void;
 }) => {
   const deleteFolder = useMutation(
     trpc.folders.deleteFolder.mutationOptions({

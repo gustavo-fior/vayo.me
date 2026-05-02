@@ -1,36 +1,66 @@
 "use client";
 
-import { Bookmark } from "@/components/bookmark";
-import { MasonryGrid } from "@/components/canvas/masonry-grid";
-import { EmptyState } from "@/components/empty-state";
-import { Button } from "@/components/ui/button";
-import { trpc, trpcClient } from "@/utils/trpc";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
+import { useParams } from "next/navigation";
 import {
   BookmarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  Image,
-  ImageIcon,
-  LayoutPanelLeftIcon,
+  Grid2X2,
+  LayoutDashboard,
+  List,
   Lock,
   Moon,
   Sun,
 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { CanvasAssetType } from "@/components/canvas/asset-card";
+import { Bookmark } from "@/components/bookmark";
+import { CanvasView } from "@/components/canvas/canvas-view";
+import { MasonryGrid } from "@/components/canvas/masonry-grid";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { trpc, trpcClient } from "@/utils/trpc";
+import { groupItemsByMonth } from "@/utils/get-items-by-month";
+import {
+  getPublicFolderViewPreference,
+  savePublicFolderViewPreference,
+} from "@/utils/local-storage";
+import {
+  canvasItemsQueryKey,
+  gridItemsQueryKey,
+  listItemsQueryKey,
+} from "@/utils/item-query-keys";
+import type { FolderView, ItemRecord } from "@/types/items";
+
+const PAGE_SIZE = 50;
+
+function normalizeItem(item: any): ItemRecord {
+  return {
+    ...item,
+    createdAt:
+      typeof item.createdAt === "string"
+        ? item.createdAt
+        : item.createdAt.toISOString(),
+    updatedAt:
+      typeof item.updatedAt === "string"
+        ? item.updatedAt
+        : item.updatedAt.toISOString(),
+  };
+}
+
+function sortByNewest(items: ItemRecord[]) {
+  return [...items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
 
 export default function Bookmarks() {
   const { folderId } = useParams();
   const { theme, setTheme } = useTheme();
-  const [notShared, setNotShared] = useState(false);
-  const [showOgImage, setShowOgImage] = useState(false);
-  const [previewAsset, setPreviewAsset] = useState<CanvasAssetType | null>(
-    null
-  );
+  const [currentView, setCurrentView] = useState<FolderView>("list");
+  const [previewItem, setPreviewItem] = useState<ItemRecord | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const folder = useQuery({
@@ -40,40 +70,54 @@ export default function Bookmarks() {
     },
   });
 
-  const isCanvasFolder = folder.data?.type === "canvas";
-
-  const bookmarks = useInfiniteQuery({
-    queryKey: ["bookmarks", "getBookmarksFromSharedFolderId", folderId],
+  const listItems = useInfiniteQuery({
+    queryKey: listItemsQueryKey(folderId as string),
     queryFn: async ({ pageParam }: { pageParam: number }) => {
-      return await trpcClient.bookmarks.getBookmarksFromSharedFolderId.query({
+      return trpcClient.items.getPublicItemsByFolderId.query({
         folderId: folderId as string,
         page: pageParam,
+        view: "list",
       });
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage: any[], allPages: any[][]) => {
-      return lastPage.length === 30 ? allPages.length + 1 : undefined;
+      return lastPage.length === PAGE_SIZE ? allPages.length + 1 : undefined;
     },
-    enabled: !!folderId && !isCanvasFolder,
+    enabled: !!folderId && currentView === "list" && !!folder.data,
     retry: false,
     meta: {
       skipGlobalErrorHandler: true,
     },
   });
 
-  const canvasAssets = useInfiniteQuery({
-    queryKey: ["canvasAssets", "getPublicCanvasAssets", folderId],
+  const gridItems = useInfiniteQuery({
+    queryKey: gridItemsQueryKey(folderId as string),
     queryFn: async ({ pageParam }: { pageParam: number }) => {
-      return await trpcClient.canvasAssets.getPublicCanvasAssets.query({
+      return trpcClient.items.getPublicItemsByFolderId.query({
         folderId: folderId as string,
         page: pageParam,
+        view: "grid",
       });
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage: any[], allPages: any[][]) => {
-      return lastPage.length === 50 ? allPages.length + 1 : undefined;
+      return lastPage.length === PAGE_SIZE ? allPages.length + 1 : undefined;
     },
-    enabled: !!folderId && isCanvasFolder,
+    enabled: !!folderId && currentView === "grid" && !!folder.data,
+    retry: false,
+    meta: {
+      skipGlobalErrorHandler: true,
+    },
+  });
+
+  const canvasItems = useQuery({
+    queryKey: canvasItemsQueryKey(folderId as string),
+    queryFn: async () => {
+      return trpcClient.items.getPublicCanvasItemsByFolderId.query({
+        folderId: folderId as string,
+      });
+    },
+    enabled: !!folderId && currentView === "canvas" && !!folder.data,
     retry: false,
     meta: {
       skipGlobalErrorHandler: true,
@@ -81,135 +125,148 @@ export default function Bookmarks() {
   });
 
   useEffect(() => {
-    if (bookmarks.isError || canvasAssets.isError) {
-      setNotShared(true);
-    }
-  }, [
-    bookmarks.isError,
-    bookmarks.error,
-    canvasAssets.isError,
-    canvasAssets.error,
-  ]);
+    if (!folder.data) return;
+    setCurrentView(
+      getPublicFolderViewPreference(folder.data.id, folder.data.defaultView)
+    );
+  }, [folder.data?.defaultView, folder.data?.id]);
 
-  const lastBookmarkElementRef = useCallback(
+  const setPublicView = useCallback(
+    (view: FolderView) => {
+      if (!folder.data) return;
+      setCurrentView(view);
+      savePublicFolderViewPreference(folder.data.id, view);
+    },
+    [folder.data]
+  );
+
+  const activeInfiniteQuery = currentView === "grid" ? gridItems : listItems;
+
+  const lastItemElementRef = useCallback(
     (node: HTMLDivElement | null) => {
-      if (bookmarks.isFetchingNextPage) return;
+      if (currentView === "canvas") return;
+      if (activeInfiniteQuery.isFetchingNextPage) return;
       if (observerRef.current) observerRef.current.disconnect();
       observerRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && bookmarks.hasNextPage) {
-          bookmarks.fetchNextPage();
+        if (entries[0].isIntersecting && activeInfiniteQuery.hasNextPage) {
+          activeInfiniteQuery.fetchNextPage();
         }
       });
       if (node) observerRef.current.observe(node);
     },
     [
-      bookmarks.isFetchingNextPage,
-      bookmarks.hasNextPage,
-      bookmarks.fetchNextPage,
+      activeInfiniteQuery.fetchNextPage,
+      activeInfiniteQuery.hasNextPage,
+      activeInfiniteQuery.isFetchingNextPage,
+      currentView,
     ]
   );
 
-  const lastAssetElementRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (canvasAssets.isFetchingNextPage) return;
-      if (observerRef.current) observerRef.current.disconnect();
-      observerRef.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && canvasAssets.hasNextPage) {
-          canvasAssets.fetchNextPage();
-        }
-      });
-      if (node) observerRef.current.observe(node);
-    },
-    [
-      canvasAssets.isFetchingNextPage,
-      canvasAssets.hasNextPage,
-      canvasAssets.fetchNextPage,
-    ]
+  const visibleListItems = useMemo(
+    () => sortByNewest((listItems.data?.pages.flat() ?? []).map(normalizeItem)),
+    [listItems.data]
+  );
+  const visibleGridItems = useMemo(
+    () => (gridItems.data?.pages.flat() ?? []).map(normalizeItem),
+    [gridItems.data]
+  );
+  const visibleCanvasItems = useMemo(
+    () => (canvasItems.data ?? []).map(normalizeItem),
+    [canvasItems.data]
   );
 
-  const allAssets: CanvasAssetType[] =
-    canvasAssets.data?.pages.flat().map((a: any) => ({
-      ...a,
-      createdAt:
-        typeof a.createdAt === "string"
-          ? a.createdAt
-          : a.createdAt.toISOString(),
-      updatedAt:
-        typeof a.updatedAt === "string"
-          ? a.updatedAt
-          : a.updatedAt.toISOString(),
-    })) ?? [];
+  const groupedListItems = useMemo(
+    () => groupItemsByMonth(visibleListItems),
+    [visibleListItems]
+  );
+
+  const previewItems = useMemo(() => {
+    const currentItems =
+      currentView === "canvas"
+        ? visibleCanvasItems
+        : currentView === "grid"
+        ? visibleGridItems
+        : visibleListItems;
+    return currentItems.filter(
+      (item) => item.type === "image" || item.type === "video"
+    );
+  }, [currentView, visibleCanvasItems, visibleGridItems, visibleListItems]);
 
   const navigatePreview = useCallback(
     (direction: "next" | "previous") => {
-      if (!previewAsset || allAssets.length < 2) return;
+      if (!previewItem || previewItems.length < 2) return;
 
-      const idx = allAssets.findIndex((a) => a.id === previewAsset.id);
-      if (idx === -1) return;
+      const index = previewItems.findIndex(
+        (item) => item.id === previewItem.id
+      );
+      if (index === -1) return;
 
-      const nextAsset =
+      const nextItem =
         direction === "next"
-          ? allAssets[(idx + 1) % allAssets.length]
-          : allAssets[(idx - 1 + allAssets.length) % allAssets.length];
+          ? previewItems[(index + 1) % previewItems.length]
+          : previewItems[
+              (index - 1 + previewItems.length) % previewItems.length
+            ];
 
-      setPreviewAsset(nextAsset);
+      setPreviewItem(nextItem);
     },
-    [previewAsset, allAssets]
+    [previewItem, previewItems]
   );
 
-  // Arrow key navigation in lightbox
   useEffect(() => {
-    if (!previewAsset) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      e.preventDefault();
-      navigatePreview(e.key === "ArrowRight" ? "next" : "previous");
+    if (!previewItem) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      navigatePreview(event.key === "ArrowRight" ? "next" : "previous");
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [previewAsset, navigatePreview]);
+  }, [navigatePreview, previewItem]);
+
+  const notShared = folder.isError;
 
   return (
     <>
       <Dialog
-        open={!!previewAsset}
-        onOpenChange={(open) => !open && setPreviewAsset(null)}
+        open={!!previewItem}
+        onOpenChange={(open) => !open && setPreviewItem(null)}
       >
         <DialogContent
           showCloseButton={false}
           className="bg-transparent !border-0 shadow-none max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
         >
-          <DialogTitle className="sr-only">Asset preview</DialogTitle>
+          <DialogTitle className="sr-only">Item preview</DialogTitle>
           <div className="flex items-center justify-center gap-3 md:gap-4">
-            {allAssets.length > 1 && previewAsset && (
+            {previewItems.length > 1 && previewItem && (
               <button
                 type="button"
-                aria-label="Previous asset"
-                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none ring-0 transition hover:bg-black/70 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
+                aria-label="Previous item"
+                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none transition hover:bg-black/70"
                 onClick={() => navigatePreview("previous")}
               >
                 <ChevronLeftIcon className="size-5" />
               </button>
             )}
-            {previewAsset?.assetType === "video" ? (
+            {previewItem?.type === "video" ? (
               <video
-                src={previewAsset.url}
+                src={previewItem.url ?? ""}
                 controls
                 autoPlay
                 className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
               />
-            ) : previewAsset ? (
+            ) : previewItem ? (
               <img
-                src={previewAsset.url}
-                alt={previewAsset.originalFilename || "Asset"}
+                src={previewItem.url ?? ""}
+                alt={previewItem.originalFilename || previewItem.title}
                 className="max-w-[90vw] max-h-[90vh] object-contain rounded-md"
               />
             ) : null}
-            {allAssets.length > 1 && previewAsset && (
+            {previewItems.length > 1 && previewItem && (
               <button
                 type="button"
-                aria-label="Next asset"
-                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none ring-0 transition hover:bg-black/70 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 active:outline-none active:ring-0"
+                aria-label="Next item"
+                className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none transition hover:bg-black/70"
                 onClick={() => navigatePreview("next")}
               >
                 <ChevronRightIcon className="size-5" />
@@ -218,34 +275,59 @@ export default function Bookmarks() {
           </div>
         </DialogContent>
       </Dialog>
+
       <div
-        className={`container mx-auto ${
-          isCanvasFolder ? "max-w-5xl" : "max-w-2xl"
-        } px-6 md:py-12 py-6`}
+        className={`container mx-auto transition-all duration-300 ${
+          currentView === "canvas"
+            ? "max-w-full px-12"
+            : currentView === "grid"
+            ? "max-w-6xl px-6 md:px-8"
+            : "max-w-2xl"
+        } py-6 md:py-12`}
       >
         <div className="grid">
           <div className="flex items-center justify-between px-2 md:px-2.5">
-            {notShared ? (
-              <div className="flex gap-2 items-center">
-                <Lock className="size-5 text-neutral-500" />
-                <h1 className="md:text-lg text-base font-semibold">
-                  Not Shared
-                </h1>
+            {!notShared ? (
+              <div className="flex items-center gap-2">
+                <Lock className="size-4 dark:text-neutral-600 text-neutral-400" />
+                <h1 className="text-base font-medium">Not Shared</h1>
               </div>
             ) : (
               <div className="flex items-center gap-2.5">
                 {folder.data?.icon && (
-                  <span className="md:text-base text-sm">
-                    {folder.data?.icon}
+                  <span className="text-sm md:text-base">
+                    {folder.data.icon}
                   </span>
                 )}
-                <h1 className="md:text-lg text-base font-semibold">
-                  {folder.data?.name}
-                </h1>
+                <h1 className="text-base font-medium">{folder.data?.name}</h1>
               </div>
             )}
             {!notShared && !folder.isPending && (
-              <div className="flex items-center">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={currentView === "list" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  onClick={() => setPublicView("list")}
+                >
+                  <List className="size-4" />
+                </Button>
+                <Button
+                  variant={currentView === "grid" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  onClick={() => setPublicView("grid")}
+                >
+                  <Grid2X2 className="size-4" />
+                </Button>
+                <Button
+                  variant={currentView === "canvas" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  onClick={() => setPublicView("canvas")}
+                >
+                  <LayoutDashboard className="size-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -254,93 +336,90 @@ export default function Bookmarks() {
                 >
                   {theme === "dark" ? <Moon /> : <Sun />}
                 </Button>
-                {!isCanvasFolder && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                    onClick={() => setShowOgImage(!showOgImage)}
-                  >
-                    <Image />
-                  </Button>
-                )}
               </div>
             )}
           </div>
 
-          {!folder.isPending && <hr className="mt-2 mb-2 opacity-50" />}
+          {!folder.isPending && <hr className="mb-2 mt-2 opacity-50" />}
 
-          {/* Canvas folder view */}
-          {isCanvasFolder && (
-            <>
-              {canvasAssets.isSuccess &&
-                canvasAssets.data?.pages.every(
-                  (page: any[]) => page.length === 0
-                ) && (
-                  <div className="mt-24">
-                    <EmptyState
-                      title="No assets here"
-                      Icon={LayoutPanelLeftIcon}
-                    />
-                  </div>
-                )}
+          {currentView === "list" &&
+            visibleListItems.length === 0 &&
+            !notShared && (
+              <div className="mt-24">
+                <EmptyState title="No items here" Icon={BookmarkIcon} />
+              </div>
+            )}
 
-              {allAssets.length > 0 && (
-                <>
-                  <div className="mt-4 md:pb-48 pb-32">
-                    <MasonryGrid
-                      assets={allAssets}
-                      columns={3}
-                      isPublic
-                      onPreview={setPreviewAsset}
-                    />
-                  </div>
-                  <div ref={lastAssetElementRef} className="h-1" />
-                </>
-              )}
-            </>
+          {currentView === "list" &&
+            groupedListItems.map(([month, monthItems], monthIndex) => (
+              <div key={month} className="space-y-2">
+                <h2 className="mt-8 border-b border-neutral-200 px-2.5 pb-2 text-base font-medium dark:border-neutral-800">
+                  {month}
+                </h2>
+                <div>
+                  {monthItems.map((item: ItemRecord, itemIndex: number) => {
+                    const isLastMonth =
+                      monthIndex === groupedListItems.length - 1;
+                    const isLastItemInMonth =
+                      itemIndex === monthItems.length - 1;
+                    const isLastItem = isLastMonth && isLastItemInMonth;
+
+                    return (
+                      <div
+                        key={item.id}
+                        ref={isLastItem ? lastItemElementRef : null}
+                      >
+                        <Bookmark
+                          bookmark={item}
+                          showOgImage
+                          isPublicPage
+                          folders={[]}
+                          onPreview={setPreviewItem}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+          {currentView === "grid" &&
+            visibleGridItems.length === 0 &&
+            !notShared && (
+              <div className="mt-24">
+                <EmptyState title="No items here" Icon={LayoutDashboard} />
+              </div>
+            )}
+
+          {currentView === "grid" && visibleGridItems.length > 0 && (
+            <div className="mt-4 md:pb-24">
+              <MasonryGrid
+                assets={visibleGridItems}
+                columns={3}
+                isPublic
+                onPreview={setPreviewItem}
+              />
+              <div ref={lastItemElementRef} className="h-1" />
+            </div>
           )}
 
-          {/* Bookmarks folder view */}
-          {!isCanvasFolder && (
-            <>
-              {bookmarks.isSuccess &&
-                bookmarks.data?.pages.every(
-                  (page: any[]) => page.length === 0
-                ) && (
-                  <div className="mt-24">
-                    <EmptyState title="No bookmarks here" Icon={BookmarkIcon} />
-                  </div>
-                )}
+          {currentView === "canvas" &&
+            visibleCanvasItems.length === 0 &&
+            !notShared && (
+              <div className="mt-24">
+                <EmptyState title="No items here" Icon={LayoutDashboard} />
+              </div>
+            )}
 
-              {bookmarks.data?.pages.map((page: any[], pageIndex: number) =>
-                page.map((bookmark: any, bookmarkIndex: number) => {
-                  const isLastPage =
-                    pageIndex === bookmarks.data!.pages.length - 1;
-                  const isLastBookmarkInPage =
-                    bookmarkIndex === page.length - 1;
-                  const isLastBookmark = isLastPage && isLastBookmarkInPage;
-
-                  return (
-                    <div
-                      key={bookmark.id}
-                      ref={isLastBookmark ? lastBookmarkElementRef : null}
-                    >
-                      <Bookmark
-                        bookmark={{
-                          ...bookmark,
-                          createdAt: new Date(bookmark.createdAt),
-                          updatedAt: new Date(bookmark.updatedAt),
-                        }}
-                        isPublicPage={true}
-                        showOgImage={showOgImage}
-                        folders={[]}
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </>
+          {currentView === "canvas" && visibleCanvasItems.length > 0 && (
+            <div className="mt-4 min-h-[90vh]">
+              <CanvasView
+                assets={visibleCanvasItems}
+                rounded
+                isPublic
+                onPreview={setPreviewItem}
+              />
+            </div>
           )}
         </div>
       </div>
