@@ -17,7 +17,6 @@ export const foldersRouter = router({
         icon: folder.icon,
         isShared: folder.isShared,
         defaultView: folder.defaultView,
-        type: folder.type,
         userId: folder.userId,
         totalItems: count(item.id),
       })
@@ -32,7 +31,6 @@ export const foldersRouter = router({
         folder.icon,
         folder.isShared,
         folder.defaultView,
-        folder.type,
         folder.userId
       )
       .orderBy(asc(folder.createdAt));

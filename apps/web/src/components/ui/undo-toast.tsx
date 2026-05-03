@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleCheckIcon, Undo2Icon } from "lucide-react";
+import { CircleCheckIcon, Undo2Icon } from "lucide-react";
 
 export function UndoToast({
   message,
@@ -11,13 +11,13 @@ export function UndoToast({
 }) {
   return (
     <div className="flex justify-center mx-auto">
-      <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 py-2 text-sm font-medium flex items-center gap-1.5 shadow-lg">
+      <div className="bg-popover dark:bg-muted/50 text-popover-foreground custom-shadow rounded-full px-3 py-2 text-sm font-medium flex items-center gap-1.5">
         <CircleCheckIcon
           className="size-3.5 text-green-400 dark:text-green-600 mr-0.5"
           strokeWidth={2.2}
         />
         <h1 className="leading-none mb-px text-[13px]">{message}</h1>
-        <div className="w-px h-[90%] bg-muted ml-1 mr-0.5" />
+        <div className="w-px h-[90%] bg-primary/10 ml-1 mr-0.5" />
         <button
           type="button"
           aria-label="Undo"

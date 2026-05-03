@@ -110,8 +110,24 @@ type PendingAsset = {
   sourcePageUrl?: string | null;
 };
 type PendingTweetAssets =
-  | { error: string; assets?: undefined; sourcePageUrl?: string | null }
-  | { assets: PendingAsset[]; error?: undefined; sourcePageUrl?: string | null };
+  | {
+      loading: true;
+      error?: undefined;
+      assets?: undefined;
+      sourcePageUrl?: string | null;
+    }
+  | {
+      error: string;
+      loading?: undefined;
+      assets?: undefined;
+      sourcePageUrl?: string | null;
+    }
+  | {
+      assets: PendingAsset[];
+      loading?: undefined;
+      error?: undefined;
+      sourcePageUrl?: string | null;
+    };
 type PopupSourceContext = {
   url?: string | null;
   title?: string | null;
@@ -316,6 +332,14 @@ async function init() {
   }
 
   if (pendingTweetAssetsData) {
+    if (pendingTweetAssetsData.loading) {
+      // Background is still extracting tweet assets — show the loading
+      // spinner; the storage.onChanged listener will re-init once the real
+      // data arrives.
+      showScreen(screenLoading);
+      return;
+    }
+
     if (pendingTweetAssetsData.error) {
       showError(pendingTweetAssetsData.error);
       chrome.storage.local.remove("pendingTweetAssets");
@@ -478,5 +502,16 @@ btnSaveTweetAssets.addEventListener("click", async () => {
 });
 
 btnRetry.addEventListener("click", () => init());
+
+// Re-initialise if the background updates pendingTweetAssets while the popup
+// is showing the loading screen (the tweet-asset extraction completes async).
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes.pendingTweetAssets) return;
+  const next = changes.pendingTweetAssets.newValue as
+    | PendingTweetAssets
+    | undefined;
+  if (!next || next.loading) return;
+  init();
+});
 
 init();

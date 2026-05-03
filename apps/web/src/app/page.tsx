@@ -391,7 +391,7 @@ export default function Home() {
           className="text-muted-foreground mt-4"
         >
           A home for your most amazing discoveries. Save and share the most
-          precious bits of the internet.
+          precious bits of the web.
         </motion.p>
         <motion.div
           initial={{ opacity: 0 }}

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import {
-  CircleCheckIcon,
   CopyIcon,
   ExternalLink,
   FolderOpenIcon,
@@ -11,7 +10,7 @@ import {
   Palette,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { errorToast, successToast } from "@/utils/toast";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -36,23 +35,10 @@ export type CanvasAssetType = ItemRecord;
 function copyItemValue(item: ItemRecord) {
   const value = item.type === "color" ? item.color ?? "" : item.url ?? "";
   navigator.clipboard.writeText(value);
-  toast.custom(
-    () => (
-      <div className="flex justify-center mx-auto">
-        <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-          <CircleCheckIcon
-            className="size-3.5 text-green-400 dark:text-green-600"
-            strokeWidth={2.2}
-          />
-          <h1>
-            {item.type === "color"
-              ? "Color copied to clipboard"
-              : "URL copied to clipboard"}
-          </h1>
-        </div>
-      </div>
-    ),
-    { position: "top-center" }
+  successToast(
+    item.type === "color"
+      ? "Color copied to clipboard"
+      : "URL copied to clipboard"
   );
 }
 
@@ -69,7 +55,11 @@ function LinkCard({ item, rounded }: { item: ItemRecord; rounded: boolean }) {
     >
       <div
         className="relative aspect-[16/10] w-full overflow-hidden bg-muted/30"
-        style={hasOgImage ? undefined : { backgroundColor: getPlaceholderColor(item.id) }}
+        style={
+          hasOgImage
+            ? undefined
+            : { backgroundColor: getPlaceholderColor(item.id) }
+        }
       >
         {hasOgImage && (
           <Image
@@ -281,9 +271,9 @@ export function AssetCard({
                   await navigator.clipboard.write([
                     new ClipboardItem({ "image/png": pngBlob }),
                   ]);
-                  toast.success("Image copied to clipboard");
+                  successToast("Image copied to clipboard");
                 } catch {
-                  toast.error("Failed to copy image");
+                  errorToast("Failed to copy image");
                 }
               }}
             >

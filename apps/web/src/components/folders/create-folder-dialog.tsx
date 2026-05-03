@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
+import { errorToast } from "@/utils/toast";
 import {
   EmojiPicker,
   EmojiPickerFooter,
@@ -44,7 +44,7 @@ export const CreateFolderDialog = ({
         setSelectOpen?.(false);
       },
       onError: () => {
-        toast.error("Failed to create folder");
+        errorToast("Failed to create folder");
       },
     })
   );
@@ -75,7 +75,7 @@ export const CreateFolderDialog = ({
         <DialogHeader>
           <DialogTitle>Create Folder</DialogTitle>
         </DialogHeader>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <Popover
             onOpenChange={setEmojiPickerOpen}
             open={emojiPickerOpen}
@@ -85,12 +85,14 @@ export const CreateFolderDialog = ({
               <Button
                 variant="outline"
                 size="icon"
-                className="text-lg dark:border-input/50"
+                className="text-lg dark:bg-muted"
               >
                 {icon ? (
                   <span className="text-lg mt-[1px]">{icon}</span>
                 ) : (
-                  <span className="text-muted-foreground/50 font-[330]">?</span>
+                  <span className="text-muted-foreground/50 font-[250]">
+                    🪴
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>

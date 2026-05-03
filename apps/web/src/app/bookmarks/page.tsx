@@ -14,7 +14,13 @@ import { useTheme } from "next-themes";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
-import { BookmarkIcon, Check, LayoutDashboard } from "lucide-react";
+import {
+  BookmarkIcon,
+  Check,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LayoutDashboard,
+} from "lucide-react";
 import { Bookmark } from "@/components/bookmark";
 import { AssetUploadZone } from "@/components/canvas/asset-upload-zone";
 import { CanvasView } from "@/components/canvas/canvas-view";
@@ -54,6 +60,7 @@ import {
   saveShowOgImagePreference,
 } from "@/utils/local-storage";
 import { queryClient, trpc, trpcClient } from "@/utils/trpc";
+import { errorToast } from "@/utils/toast";
 import { addHttpIfMissing, isValidURL } from "@/utils/url-validator";
 import { isValidColor } from "@/utils/color-validator";
 import type { FolderRecord, FolderView, ItemRecord } from "@/types/items";
@@ -306,8 +313,27 @@ export default function Bookmarks() {
     []
   );
   const [previewItem, setPreviewItem] = useState<ItemRecord | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight =
+        document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? scrollTop / docHeight : 0;
+      setIsScrolled(progress > 0.4);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const displayControls = useFolderDisplayControls(currentView, setCurrentView);
+
+  const showHeaderBackground =
+    currentView === "canvas" ||
+    (currentView === "grid" && displayControls.fullWidth && isScrolled);
   const searchQuery = deferredInputValue.trim();
 
   const folders = useQuery(trpc.folders.getFolders.queryOptions());
@@ -413,7 +439,7 @@ export default function Bookmarks() {
       onError: (_error, _variables, context) => {
         if (!context) return;
         removeOptimisticItem(context.folderId, context.tempId);
-        toast.error("Failed to create link");
+        errorToast("Failed to create link");
       },
       onSettled: (_result, _error, variables) => {
         void Promise.all([
@@ -464,7 +490,7 @@ export default function Bookmarks() {
       onError: (_error, _variables, context) => {
         if (!context) return;
         removeOptimisticItem(context.folderId, context.tempId);
-        toast.error("Failed to create color");
+        errorToast("Failed to create color");
       },
       onSettled: (_result, _error, variables) => {
         void Promise.all([
@@ -646,7 +672,7 @@ export default function Bookmarks() {
           action.sourceFolderId,
           action.targetFolderId,
         ]);
-        toast.error(
+        errorToast(
           action.operation === "delete"
             ? "Failed to delete item"
             : "Failed to move item"
@@ -1005,7 +1031,7 @@ export default function Bookmarks() {
       >
         <DialogContent
           showCloseButton={false}
-          className="bg-transparent !border-0 shadow-none max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
+          className="bg-transparent !border-0 !shadow-none !dark:shadow-none z-9999 max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
         >
           <DialogTitle className="sr-only">Item preview</DialogTitle>
           <div className="flex items-center justify-center gap-3 md:gap-4">
@@ -1016,7 +1042,7 @@ export default function Bookmarks() {
                 className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none transition hover:bg-black/70"
                 onClick={() => navigatePreview("previous")}
               >
-                {"<"}
+                <ChevronLeftIcon className="size-[13px] mr-px" />
               </button>
             )}
             {previewItem?.type === "video" ? (
@@ -1040,7 +1066,7 @@ export default function Bookmarks() {
                 className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none transition hover:bg-black/70"
                 onClick={() => navigatePreview("next")}
               >
-                {">"}
+                <ChevronRightIcon className="size-[13px] ml-px" />
               </button>
             )}
           </div>
@@ -1053,18 +1079,21 @@ export default function Bookmarks() {
             selectedFolder={selectedFolder}
             setSelectedFolder={setSelectedFolder}
             folders={folders.data ?? []}
+            withBackground={showHeaderBackground}
           />
         </div>
         <div className="md:fixed absolute md:right-8 md:top-8 right-6 top-6 flex items-center gap-2">
           <ShareFolder
             selectedFolder={selectedFolder}
             setSelectedFolder={setSelectedFolder}
+            withBackground={showHeaderBackground}
           />
           <UserMenu
             showMonths={showMonths}
             setShowMonths={setShowMonths}
             showOgImage={showOgImage}
             setShowOgImage={setShowOgImage}
+            withBackground={showHeaderBackground}
             canvasControls={{
               ...displayControls,
               setViewMode: setFolderView,
@@ -1079,7 +1108,7 @@ export default function Bookmarks() {
           currentView === "canvas"
             ? "max-w-full px-0 pb-0 pt-0 md:pt-0"
             : currentView === "grid" && displayControls.fullWidth
-            ? "max-w-full md:px-8 pt-20 md:pt-24 px-6"
+            ? "max-w-full md:px-8 pt-20 md:pt-32 px-6"
             : currentView === "grid"
             ? "max-w-6xl pt-20 md:pt-32 md:px-0 px-6"
             : "max-w-2xl px-4 pb-36 pt-20 md:pt-32"
@@ -1095,92 +1124,91 @@ export default function Bookmarks() {
           {!isEmptyFolder && selectedFolder && (
             <>
               {currentView !== "canvas" && (
-              <div className="relative h-9">
-                <Input
-                  ref={inputRef}
-                  placeholder="Add anything or search..."
-                  className={cn(
-                    "dark:bg-neutral-900",
-                    isItemAdded &&
-                      "focus-visible:border-green-400 rounded-md focus-visible:ring-green-400/20 focus-visible:ring-2 dark:focus-visible:border-green-600 dark:focus-visible:ring-green-600/20"
-                  )}
-                  value={inputValue}
-                  onChange={(event) => setInputValue(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      submitInputValue(inputValue);
-                    }
-                  }}
-                  onPaste={(event) => {
-                    const pastedText = event.clipboardData.getData("text");
-                    if (!pastedText.trim()) {
-                      return;
-                    }
+                <div className="relative h-9 mx-auto w-full max-w-[40rem]">
+                  <Input
+                    ref={inputRef}
+                    placeholder="Add anything or search..."
+                    className={cn(
+                      isItemAdded &&
+                        "focus-visible:border-green-400 rounded-md focus-visible:ring-green-400/20 focus-visible:ring-2 dark:focus-visible:border-green-600 dark:focus-visible:ring-green-600/20"
+                    )}
+                    value={inputValue}
+                    onChange={(event) => setInputValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        submitInputValue(inputValue);
+                      }
+                    }}
+                    onPaste={(event) => {
+                      const pastedText = event.clipboardData.getData("text");
+                      if (!pastedText.trim()) {
+                        return;
+                      }
 
-                    if (submitInputValue(pastedText)) {
-                      event.preventDefault();
-                    }
-                  }}
-                />
+                      if (submitInputValue(pastedText)) {
+                        event.preventDefault();
+                      }
+                    }}
+                  />
 
-                <AnimatePresence>
-                  {!isItemAdded && (
-                    <motion.div
-                      key="shortcut-hint"
-                      initial={{
-                        opacity: 0,
-                        x: 16,
-                        filter: "blur(4px)",
-                        scale: 0.97,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        x: 0,
-                        filter: "blur(0px)",
-                        scale: 1,
-                      }}
-                      exit={{
-                        opacity: 0,
-                        x: 16,
-                        filter: "blur(4px)",
-                        scale: 0.97,
-                      }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
-                      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2"
-                    >
-                      <Shortcut>Shift</Shortcut>
-                      <Shortcut>F</Shortcut>
-                    </motion.div>
-                  )}
-                  {isItemAdded && (
-                    <motion.div
-                      key="item-added"
-                      initial={{
-                        opacity: 0,
-                        x: 16,
-                        filter: "blur(4px)",
-                        scale: 0.97,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        x: 0,
-                        filter: "blur(0px)",
-                        scale: 1,
-                      }}
-                      exit={{
-                        opacity: 0,
-                        x: 16,
-                        filter: "blur(4px)",
-                        scale: 0.97,
-                      }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-green-400 dark:text-green-600"
-                    >
-                      <Check className="h-4 w-4" />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  <AnimatePresence>
+                    {!isItemAdded && (
+                      <motion.div
+                        key="shortcut-hint"
+                        initial={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          x: 0,
+                          filter: "blur(0px)",
+                          scale: 1,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2"
+                      >
+                        <Shortcut>Shift</Shortcut>
+                        <Shortcut>F</Shortcut>
+                      </motion.div>
+                    )}
+                    {isItemAdded && (
+                      <motion.div
+                        key="item-added"
+                        initial={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          x: 0,
+                          filter: "blur(0px)",
+                          scale: 1,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          x: 16,
+                          filter: "blur(4px)",
+                          scale: 0.97,
+                        }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-green-400 dark:text-green-600"
+                      >
+                        <Check className="h-4 w-4" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
 
               {currentView === "list" && !showMonths && (
@@ -1267,7 +1295,7 @@ export default function Bookmarks() {
                 )}
 
               {currentView === "grid" && visibleGridItems.length > 0 && (
-                <div className="space-y-4 md:pb-48 pb-32 mt-6">
+                <div className="space-y-4 md:pb-48 pb-32 mt-12">
                   <MasonryGrid
                     assets={visibleGridItems}
                     columns={displayControls.columns}

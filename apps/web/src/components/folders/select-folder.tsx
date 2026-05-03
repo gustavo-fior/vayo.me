@@ -1,27 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { CreateFolderDialog } from "./create-folder-dialog";
 import { EditFolderDialog } from "./edit-folder-dialog";
 import { DeleteFolderButton } from "./delete-folder-button";
+import { Button } from "../ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import type { FolderRecord } from "@/types/items";
 
 export const SelectFolder = ({
   selectedFolder,
   setSelectedFolder,
   folders,
+  withBackground = false,
 }: {
   selectedFolder: FolderRecord | null;
   setSelectedFolder: (folder: FolderRecord | null) => void;
   folders: FolderRecord[];
+  withBackground?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -64,37 +67,30 @@ export const SelectFolder = ({
   }
 
   return (
-    <Select
-      open={open}
-      onOpenChange={setOpen}
-      value={selectedFolder?.id ?? undefined}
-      onValueChange={(value) => {
-        const newFolder = folders?.find((folder) => folder.id === value);
-
-        if (newFolder) {
-          setSelectedFolder(newFolder);
-        }
-      }}
-    >
-      <SelectTrigger className="w-fit transition-colors duration-100 cursor-pointer border-none bg-transparent dark:bg-transparent hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 focus-visible:ring-0 focus-visible:ring-offset-0 select-none shadow-none">
-        <SelectValue placeholder="Select a folder" className="select-none ">
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className={`w-fit h-9 px-3 py-2 justify-between font-medium select-none ring-0 active:ring-0 focus:ring-0 focus-visible:ring-0 transition-colors duration-200 ${
+            withBackground && open
+              ? "bg-popover dark:bg-popover custom-shadow"
+              : withBackground
+              ? "bg-white/90 dark:bg-neutral-900/80 custom-shadow hover:bg-white dark:hover:bg-neutral-900"
+              : ""
+          }`}
+        >
           <div className="flex items-center gap-2">
             {selectedFolder?.icon && <p>{selectedFolder.icon}</p>}
             <p className="font-medium">{selectedFolder?.name}</p>
           </div>
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent
-        align="start"
-        side="bottom"
-        sideOffset={4}
-        alignOffset={8}
-        className="min-w-56 max-w-auto"
-      >
+          <ChevronDownIcon className="size-3.5 stroke-[1.5] opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={12} className="min-w-56">
         {folders?.map((folder, index) => (
-          <SelectItem
+          <DropdownMenuItem
             key={folder.id}
-            value={folder.id}
+            onSelect={() => setSelectedFolder(folder)}
             className="cursor-pointer select-none flex items-center h-9 justify-between w-full group"
           >
             <div className="flex items-center gap-2.5">
@@ -112,15 +108,21 @@ export const SelectFolder = ({
               <span className="text-[11px] text-muted-foreground/50 tabular-nums">
                 {folder.totalItems}
               </span>
-              {selectedFolder?.id !== folder.id && (
-                <span className="flex text-[10px] items-center justify-center bg-muted/50 rounded-[3px] py-[1px] px-1 border border-border/30 group-hover:bg-transparent group-hover:border-transparent tabular-nums font-mono">
+              {selectedFolder?.id !== folder.id && index < 9 && (
+                <span className="flex text-[10px] items-center justify-center bg-muted/50 rounded-[3px] py-[1px] px-1 custom-shadow group-hover:bg-transparent group-hover:border-transparent tabular-nums font-mono">
                   {index + 1}
                 </span>
               )}
             </div>
-          </SelectItem>
+
+            {selectedFolder?.id === folder.id && (
+              <span className="absolute right-2 flex size-3.5 items-center justify-center">
+                <CheckIcon className="size-4 stroke-[1.5]" />
+              </span>
+            )}
+          </DropdownMenuItem>
         ))}
-        <SelectSeparator />
+        <DropdownMenuSeparator />
         <CreateFolderDialog
           setSelectedFolder={setSelectedFolder}
           setSelectOpen={setOpen}
@@ -140,7 +142,7 @@ export const SelectFolder = ({
             setSelectedFolder={setSelectedFolder}
           />
         )}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };

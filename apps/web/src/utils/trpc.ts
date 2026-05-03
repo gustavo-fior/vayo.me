@@ -2,7 +2,7 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "server/src/trpc/routers";
-import { toast } from "sonner";
+import { errorToast } from "./toast";
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -12,7 +12,7 @@ export const queryClient = new QueryClient({
         return;
       }
 
-      toast.error(error.message);
+      errorToast(error.message);
     },
   }),
 });

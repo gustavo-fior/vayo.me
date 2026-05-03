@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Upload, ArrowUpIcon, CircleXIcon, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { Upload, ArrowUpIcon, Loader2 } from "lucide-react";
 import { queryClient, trpc } from "@/utils/trpc";
+import { errorToast } from "@/utils/toast";
 import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -151,7 +151,7 @@ export function AssetUploadZone({
   const createAsset = useMutation(
     trpc.items.createAsset.mutationOptions({
       onError: () => {
-        toast.error("Failed to create item");
+        errorToast("Failed to create item");
       },
     })
   );
@@ -159,7 +159,7 @@ export function AssetUploadZone({
   const uploadFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-        toast.error("Only image and video files are allowed");
+        errorToast("Only image and video files are allowed");
         return;
       }
 
@@ -244,7 +244,7 @@ export function AssetUploadZone({
           }
         );
       } catch (error: any) {
-        toast.error(error.message || "Failed to upload file");
+        errorToast(error.message || "Failed to upload file");
         removeTempItem(folderId, tempId);
       }
     },
@@ -359,20 +359,7 @@ export function AssetUploadZone({
   const showInvalidUrlError = useCallback((message: string) => {
     setIsInvalidUrl(true);
     setTimeout(() => setIsInvalidUrl(false), 2000);
-    toast.custom(
-      () => (
-        <div className="flex justify-center mx-auto">
-          <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-            <CircleXIcon
-              className="size-3.5 text-destructive"
-              strokeWidth={2.2}
-            />
-            <h1>{message}</h1>
-          </div>
-        </div>
-      ),
-      { position: "top-center" }
-    );
+    errorToast(message);
   }, []);
 
   const submitUrl = useCallback(
@@ -524,14 +511,14 @@ export function AssetUploadZone({
           transition={{ duration: 0.2, ease: "easeInOut", delay: 1 }}
           className="fixed bottom-6 left-1/2 z-50 w-full max-w-md -translate-x-1/2 px-4"
         >
-          <div className="flex bg-neutral-100/90 dark:bg-neutral-900/90 backdrop-blur-[4px] rounded-lg border border-border shadow-lg">
+          <div className="flex bg-neutral-100/90 dark:bg-muted backdrop-blur-[4px] rounded-lg border border-border shadow-lg">
             <div className="relative flex-1">
               <Input
                 placeholder="Paste image/video link"
                 value={urlInput}
                 style={{ boxShadow: "none" }}
                 className={cn(
-                  "rounded-sm border-transparent h-10 dark:border-transparent focus-visible:border-transparent focus-visible:ring-0 bg-transparent text-primary placeholder:text-primary/50",
+                  "border-transparent h-10 dark:border-transparent rounded-lg focus-visible:border-transparent focus-visible:ring-0 bg-transparent text-primary placeholder:text-primary/50",
                   isInvalidUrl &&
                     "animate-shake placeholder:text-destructive dark:placeholder:text-destructive text-destructive dark:text-destructive selection:bg-destructive/20 dark:selection:bg-destructive/20 selection:text-destructive dark:selection:text-destructive"
                 )}
@@ -553,7 +540,7 @@ export function AssetUploadZone({
                 onClick={handleUrlSubmit}
                 style={{ boxShadow: "none" }}
                 disabled={!urlInput.trim() || createAsset.isPending}
-                className="absolute right-0 top-0 z-50 size-10 rounded-l-sm rounded-r-none border-0 duration-200 hover:bg-transparent active:scale-95"
+                className="absolute right-0 top-0 z-50 size-10 rounded-l-sm rounded-r-none border-0 duration-200 hover:opacity-80 active:scale-95"
               >
                 {createAsset.isPending ? (
                   <Loader2 className="size-3.5 animate-spin stroke-[1.5] text-neutral-500 dark:text-neutral-400" />
@@ -567,7 +554,7 @@ export function AssetUploadZone({
               size="sm"
               variant="ghost"
               onClick={() => fileInputRef.current?.click()}
-              className="size-10 rounded-l-none border-0"
+              className="size-10 rounded-l-none border-0 hover:opacity-80 active:scale-95"
             >
               <Upload className="size-3.5 stroke-[1.5]" />
             </Button>

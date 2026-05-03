@@ -6,7 +6,7 @@ export type FolderRecord = {
   icon: string | null;
   isShared: boolean;
   defaultView: FolderView;
-  type: "bookmarks" | "canvas";
+  type?: "bookmarks" | "canvas";
   createdAt: string;
   updatedAt: string;
   userId: string;

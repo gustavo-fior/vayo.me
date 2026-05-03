@@ -52,6 +52,18 @@ body {
   min-width: 360px;
   min-height: 200px;
   padding: 1.25rem;
+  animation: popup-fade-in 180ms ease-out both;
+}
+
+@keyframes popup-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hidden {

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
+import { errorToast } from "@/utils/toast";
 import {
   EmojiPicker,
   EmojiPickerFooter,
@@ -43,11 +43,15 @@ export const EditFolderDialog = ({
         setOpen(false);
         setSelectOpen?.(false);
         if (data[0]) {
-          setSelectedFolder({ ...folder, name: data[0].name, icon: data[0].icon });
+          setSelectedFolder({
+            ...folder,
+            name: data[0].name,
+            icon: data[0].icon,
+          });
         }
       },
       onError: () => {
-        toast.error("Failed to update folder");
+        errorToast("Failed to update folder");
       },
     })
   );
@@ -68,8 +72,8 @@ export const EditFolderDialog = ({
           variant="ghost"
           className="flex justify-start px-[7px] w-full rounded-sm transition-none active:scale-100"
         >
-          <div className="flex items-center gap-2 font-normal">
-            <PencilIcon className="size-3.5 stroke-[1.5] text-neutral-400 dark:text-neutral-600" />
+          <div className="flex items-center gap-[11px] font-normal">
+            <PencilIcon className="size-[13px] stroke-[1.5] text-neutral-400 dark:text-neutral-600" />
             Edit
           </div>
         </Button>
@@ -78,7 +82,7 @@ export const EditFolderDialog = ({
         <DialogHeader>
           <DialogTitle>Edit Folder</DialogTitle>
         </DialogHeader>
-        <div className="flex items-center gap-2 my-4">
+        <div className="flex items-center gap-2 mb-2">
           <Popover
             onOpenChange={setEmojiPickerOpen}
             open={emojiPickerOpen}
@@ -88,12 +92,14 @@ export const EditFolderDialog = ({
               <Button
                 variant="outline"
                 size="icon"
-                className="text-lg dark:border-input/50"
+                className="text-lg dark:bg-muted"
               >
                 {icon ? (
                   <span className="text-lg mt-[1px]">{icon}</span>
                 ) : (
-                  <span className="text-muted-foreground/50 font-[330]">?</span>
+                  <span className="text-muted-foreground/50 font-[250]">
+                    🪴
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>

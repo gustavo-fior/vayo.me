@@ -4,17 +4,17 @@ import Image from "next/image";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
-  CircleCheckIcon,
   CopyIcon,
   FolderOpenIcon,
   Globe,
   ImageIcon,
   Palette,
   Pencil,
+  Trash2,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
 import { queryClient, trpc } from "@/utils/trpc";
+import { errorToast, successToast } from "@/utils/toast";
 import { formatDate } from "@/utils/format-date";
 import { getGoogleFavicon } from "@/utils/google-favicon";
 import { getItemDomain, getItemSubtitle } from "@/utils/item-display";
@@ -112,17 +112,7 @@ export const Bookmark = ({
         queryClient.invalidateQueries({
           queryKey: ["items", "folder", bookmark.folderId],
         });
-        toast.custom(() => (
-          <div className="flex justify-center mx-auto">
-            <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-              <CircleCheckIcon
-                className="size-3.5 text-green-400 dark:text-green-600"
-                strokeWidth={2.2}
-              />
-              <h1>Title updated</h1>
-            </div>
-          </div>
-        ));
+        successToast("Title updated");
       },
     })
   );
@@ -174,7 +164,7 @@ export const Bookmark = ({
 
     if (isColor && bookmark.color) {
       navigator.clipboard.writeText(bookmark.color);
-      toast.success("Color copied to clipboard");
+      successToast("Color copied to clipboard");
       return;
     }
 
@@ -395,7 +385,7 @@ export const Bookmark = ({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-44">
-        {!isPublicPage && (
+        {!isPublicPage && !isColor && (
           <>
             <ContextMenuItem
               className="flex items-center gap-2"
@@ -414,17 +404,9 @@ export const Bookmark = ({
               ? bookmark.color ?? ""
               : bookmark.url ?? "";
             navigator.clipboard.writeText(textToCopy);
-            toast.custom(() => (
-              <div className="flex justify-center mx-auto">
-                <div className="bg-popover text-popover-foreground border border-input rounded-full px-3 pr-4 py-2 text-sm font-medium flex items-center gap-2.5 shadow-lg">
-                  <CircleCheckIcon
-                    className="size-3.5 text-green-400 dark:text-green-600 fill-green-400/20 dark:fill-green-600/30"
-                    strokeWidth={2.2}
-                  />
-                  <h1>{isColor ? "Color" : "Link"} copied to clipboard</h1>
-                </div>
-              </div>
-            ));
+            successToast(
+              `${isColor ? "Color" : "Link"} copied to clipboard`
+            );
           }}
         >
           {isColor ? (
@@ -446,9 +428,9 @@ export const Bookmark = ({
                   await navigator.clipboard.write([
                     new ClipboardItem({ [blob.type || "image/png"]: blob }),
                   ]);
-                  toast.success("Image copied to clipboard");
+                  successToast("Image copied to clipboard");
                 } catch {
-                  toast.error("Failed to copy image");
+                  errorToast("Failed to copy image");
                 }
               }}
             >
@@ -489,6 +471,18 @@ export const Bookmark = ({
               </ContextMenuSub>
             </>
           )}
+        {!isPublicPage && onDelete && !isActionPending && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              className="flex items-center gap-2 hover:text-destructive focus:text-destructive group"
+              onClick={() => onDelete(bookmark)}
+            >
+              <Trash2 className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 group-hover:text-destructive/20 group-focus:text-destructive" />
+              Delete
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

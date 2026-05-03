@@ -22,11 +22,14 @@ import { Switch } from "../ui/switch";
 export default function ShareFolder({
   selectedFolder,
   setSelectedFolder,
+  withBackground = false,
 }: {
   selectedFolder: FolderRecord | null;
   setSelectedFolder: (folder: FolderRecord | null) => void;
+  withBackground?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const updateFolderVisibility = useMutation(
     trpc.folders.updateFolderVisibility.mutationOptions()
   );
@@ -36,12 +39,18 @@ export default function ShareFolder({
   }
 
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          className="select-none ring-0 active:ring-0 focus:ring-0 focus-visible:ring-0 active:scale-100"
+          className={`select-none ring-0 active:ring-0 focus:ring-0 focus-visible:ring-0 active:scale-100 transition-colors duration-200 ${
+            withBackground && isOpen
+              ? "bg-popover dark:bg-popover custom-shadow"
+              : withBackground
+              ? "bg-white/90 dark:bg-neutral-900/80 custom-shadow hover:bg-white dark:hover:bg-neutral-900"
+              : ""
+          }`}
         >
           <Share className="stroke-[1.5]" />
         </Button>
@@ -54,10 +63,10 @@ export default function ShareFolder({
       >
         <div className="flex justify-between items-center pr-3">
           <div className="flex flex-col gap-0.5">
-            <DropdownMenuLabel className="pb-0 select-none">
+            <DropdownMenuLabel className="pb-0 select-none ">
               Visibility
             </DropdownMenuLabel>
-            <DropdownMenuLabel className="text-xs text-neutral-500 pt-0 select-none font-normal">
+            <DropdownMenuLabel className="text-xs text-neutral-500 pt-0 select-none font-normal ">
               Make this folder public to everyone.
             </DropdownMenuLabel>
           </div>
@@ -129,7 +138,7 @@ export default function ShareFolder({
             >
               <Input
                 readOnly
-                className={`cursor-pointer rounded-sm px-2.5 select-none text-muted-foreground ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-input/30 focus-visible:border-input/30 ${
+                className={`cursor-pointer rounded-sm px-2.5 select-none text-muted-foreground dark:bg-transparent ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-input/30 focus-visible:border-input/30 ${
                   copied
                     ? "border-green-200 dark:border-green-900"
                     : "border-input/30 focus-visible:border-input/30"
@@ -139,7 +148,7 @@ export default function ShareFolder({
                   ""
                 )}/bookmarks/${selectedFolder.id}`}
               />
-              <div className="bg-gradient-to-r from-transparent via-popover/60 to-popover rounded-sm p-1 absolute right-8 top-1 h-7 w-32 cursor-pointer" />
+              <div className="bg-gradient-to-r from-transparent via-popover/70 to-popover rounded-sm p-1 absolute right-8 top-1 h-7 w-32 cursor-pointer" />
               <div className="bg-popover rounded-sm p-1 absolute right-2 top-1 h-7 w-6 cursor-pointer" />
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-sm p-1">
                 <AnimatePresence mode="popLayout" initial={false}>

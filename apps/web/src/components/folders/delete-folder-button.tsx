@@ -1,7 +1,7 @@
 import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { errorToast } from "@/utils/toast";
 import { HoldToDeleteButton } from "../ui/hold-button";
 import type { FolderRecord } from "@/types/items";
 
@@ -35,7 +35,7 @@ export const DeleteFolderButton = ({
         }
       },
       onError: () => {
-        toast.error("Failed to delete folder");
+        errorToast("Failed to delete folder");
       },
     })
   );
@@ -46,14 +46,14 @@ export const DeleteFolderButton = ({
       disabled={deleteFolder.isPending}
       isPending={deleteFolder.isPending}
       pendingText={
-        <div className="flex items-center gap-2 z-10 font-normal">
-          <Trash2 className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+        <div className="flex items-center gap-[11px] z-10 font-normal">
+          <Trash2 className="size-[13px] stroke-[1.5] fill-current/10 dark:fill-current/20" />
           Deleting...
         </div>
       }
     >
-      <div className="flex items-center gap-2 z-10 font-normal">
-        <Trash2 className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+      <div className="flex items-center gap-[11px] z-10 font-normal">
+        <Trash2 className="size-[13px] stroke-[1.5] fill-current/10 dark:fill-current/20" />
         Delete
       </div>
     </HoldToDeleteButton>

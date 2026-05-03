@@ -20,14 +20,15 @@ import {
   CircleIcon,
   Columns3,
   ExpandIcon,
-  Grid2X2,
   LayoutDashboard,
   List,
   LogOut,
   MaximizeIcon,
   Moon,
   PanelsTopLeft,
+  Ratio,
   User,
+  View,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
@@ -59,18 +60,20 @@ export default function UserMenu({
   showOgImage,
   setShowOgImage,
   canvasControls,
+  withBackground = false,
 }: {
   showMonths: boolean;
   setShowMonths: (showMonths: boolean) => void;
   showOgImage: boolean;
   setShowOgImage: (showOgImage: boolean) => void;
   canvasControls?: CanvasControls;
+  withBackground?: boolean;
 }) {
   const router = useRouter();
   const { setTheme, theme } = useTheme();
   const { data: session } = authClient.useSession();
   const [showExtensionInstall, setShowExtensionInstall] = useState(false);
-
+  const [isOpen, setIsOpen] = useState(false);
   useEffect(() => {
     let isCancelled = false;
 
@@ -98,12 +101,18 @@ export default function UserMenu({
   const viewMode = canvasControls?.viewMode ?? "list";
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          className="select-none ring-0 active:ring-0 focus:ring-0 focus-visible:ring-0"
+          className={`select-none ring-0 active:ring-0 focus:ring-0 focus-visible:ring-0 transition-colors duration-200 ${
+            withBackground && isOpen
+              ? "bg-popover dark:bg-popover custom-shadow"
+              : withBackground
+              ? "bg-white/90 dark:bg-neutral-900/80 custom-shadow hover:bg-white dark:hover:bg-neutral-900"
+              : ""
+          }`}
         >
           {session?.user.image ? (
             <Image
@@ -148,37 +157,68 @@ export default function UserMenu({
         {canvasControls && (
           <>
             <DropdownMenuSeparator />
-            <div className="p-2">
-              <div className="flex gap-1">
-                <Button
-                  variant={viewMode === "list" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
+            <div className="p-2 flex flex-col gap-3">
+              <div className="flex gap-2 items-center">
+                <View className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 text-neutral-500" />
+                <Label className="cursor-pointer select-none font-normal">
+                  View Mode
+                </Label>
+              </div>
+              <div className="flex gap-1 items-center justify-between">
+                <div
+                  className="flex items-center justify-center gap-2 cursor-pointer select-none hover:text-accent-foreground text-muted-foreground transition-colors duration-150"
                   onClick={() => canvasControls.setViewMode("list")}
                 >
-                  <List className="size-3.5 stroke-[1.5] text-neutral-500" />
-                  <span className="text-xs">List</span>
-                </Button>
-                <Button
-                  variant={viewMode === "grid" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
+                  <List
+                    className={`size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 ${
+                      viewMode === "list" && "text-accent-foreground"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs ${
+                      viewMode === "list" && "text-accent-foreground"
+                    }`}
+                  >
+                    List
+                  </span>
+                  <Shortcut>L</Shortcut>
+                </div>
+                <div
+                  className="flex items-center justify-center gap-2 cursor-pointer select-none hover:text-accent-foreground text-muted-foreground transition-colors duration-150"
                   onClick={() => canvasControls.setViewMode("grid")}
                 >
-                  <Grid2X2 className="size-3.5 stroke-[1.5] text-neutral-500" />
-                  <span className="text-xs">Grid</span>
+                  <LayoutDashboard
+                    className={`size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20 ${
+                      viewMode === "grid" && "text-accent-foreground"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs ${
+                      viewMode === "grid" && "text-accent-foreground"
+                    }`}
+                  >
+                    Grid
+                  </span>
                   <Shortcut>G</Shortcut>
-                </Button>
-                <Button
-                  variant={viewMode === "canvas" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="flex-1 h-8 gap-1.5 rounded-sm active:scale-100"
+                </div>
+                <div
+                  className="flex items-center justify-center gap-2 cursor-pointer select-none hover:text-accent-foreground text-muted-foreground transition-colors duration-150"
                   onClick={() => canvasControls.setViewMode("canvas")}
                 >
-                  <LayoutDashboard className="size-3.5 stroke-[1.5] text-neutral-500" />
-                  <span className="text-xs">Canvas</span>
+                  <Ratio
+                    className={`size-3.5 stroke-[1.5] fill-current/5 dark:fill-current/15 ${
+                      viewMode === "canvas" && "text-accent-foreground"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs ${
+                      viewMode === "canvas" && "text-accent-foreground"
+                    }`}
+                  >
+                    Canvas
+                  </span>
                   <Shortcut>C</Shortcut>
-                </Button>
+                </div>
               </div>
             </div>
           </>
@@ -353,7 +393,7 @@ export default function UserMenu({
               >
                 <Chrome className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
                 <span>Install extension</span>
-                <ArrowUpRight className="ml-auto size-3.5 text-neutral-500" />
+                <ArrowUpRight className="ml-auto size-3.5 text-neutral-500 mr-1" />
               </a>
             </DropdownMenuItem>
           </>

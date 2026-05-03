@@ -8,11 +8,11 @@ import {
   BookmarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  Grid2X2,
   LayoutDashboard,
   List,
   Lock,
   Moon,
+  Ratio,
   Sun,
 } from "lucide-react";
 import { Bookmark } from "@/components/bookmark";
@@ -22,7 +22,6 @@ import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { trpc, trpcClient } from "@/utils/trpc";
-import { groupItemsByMonth } from "@/utils/get-items-by-month";
 import {
   getPublicFolderViewPreference,
   savePublicFolderViewPreference,
@@ -175,11 +174,6 @@ export default function Bookmarks() {
     [canvasItems.data]
   );
 
-  const groupedListItems = useMemo(
-    () => groupItemsByMonth(visibleListItems),
-    [visibleListItems]
-  );
-
   const previewItems = useMemo(() => {
     const currentItems =
       currentView === "canvas"
@@ -234,7 +228,7 @@ export default function Bookmarks() {
       >
         <DialogContent
           showCloseButton={false}
-          className="bg-transparent !border-0 shadow-none max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
+          className="!bg-transparent !border-0 !shadow-none !dark:shadow-none z-9999 max-w-[90vw] max-h-[90vh] p-0 flex items-center justify-center ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus-visible:outline-none"
         >
           <DialogTitle className="sr-only">Item preview</DialogTitle>
           <div className="flex items-center justify-center gap-3 md:gap-4">
@@ -245,7 +239,7 @@ export default function Bookmarks() {
                 className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none transition hover:bg-black/70"
                 onClick={() => navigatePreview("previous")}
               >
-                <ChevronLeftIcon className="size-5" />
+                <ChevronLeftIcon className="size-[13px] mr-px" />
               </button>
             )}
             {previewItem?.type === "video" ? (
@@ -269,25 +263,17 @@ export default function Bookmarks() {
                 className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur outline-none transition hover:bg-black/70"
                 onClick={() => navigatePreview("next")}
               >
-                <ChevronRightIcon className="size-5" />
+                <ChevronRightIcon className="size-[13px] ml-px" />
               </button>
             )}
           </div>
         </DialogContent>
       </Dialog>
 
-      <div
-        className={`container mx-auto transition-all duration-300 ${
-          currentView === "canvas"
-            ? "max-w-full px-12"
-            : currentView === "grid"
-            ? "max-w-6xl px-6 md:px-8"
-            : "max-w-2xl"
-        } py-6 md:py-12`}
-      >
-        <div className="grid">
+      <div className="py-6 md:py-12">
+        <div className="container mx-auto max-w-2xl">
           <div className="flex items-center justify-between px-2 md:px-2.5">
-            {!notShared ? (
+            {notShared ? (
               <div className="flex items-center gap-2">
                 <Lock className="size-4 dark:text-neutral-600 text-neutral-400" />
                 <h1 className="text-base font-medium">Not Shared</h1>
@@ -307,42 +293,57 @@ export default function Bookmarks() {
                 <Button
                   variant={currentView === "list" ? "secondary" : "ghost"}
                   size="icon"
-                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 size-7.5"
                   onClick={() => setPublicView("list")}
                 >
-                  <List className="size-4" />
+                  <List className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
                 </Button>
                 <Button
                   variant={currentView === "grid" ? "secondary" : "ghost"}
                   size="icon"
-                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 size-7.5"
                   onClick={() => setPublicView("grid")}
                 >
-                  <Grid2X2 className="size-4" />
+                  <LayoutDashboard className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
                 </Button>
                 <Button
                   variant={currentView === "canvas" ? "secondary" : "ghost"}
                   size="icon"
-                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 size-7.5"
                   onClick={() => setPublicView("canvas")}
                 >
-                  <LayoutDashboard className="size-4" />
+                  <Ratio className="size-3.5 stroke-[1.5] fill-current/5 dark:fill-current/15" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="select-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 size-7.5"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 >
-                  {theme === "dark" ? <Moon /> : <Sun />}
+                  {theme === "dark" ? (
+                    <Moon className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+                  ) : (
+                    <Sun className="size-3.5 stroke-[1.5] fill-current/10 dark:fill-current/20" />
+                  )}
                 </Button>
               </div>
             )}
           </div>
 
           {!folder.isPending && <hr className="mb-2 mt-2 opacity-50" />}
+        </div>
 
+        <div
+          className={`container mx-auto ${
+            currentView === "canvas"
+              ? "max-w-full px-0"
+              : currentView === "grid"
+              ? "max-w-6xl px-6 md:px-8"
+              : "max-w-2xl"
+          }`}
+        >
           {currentView === "list" &&
+            listItems.isSuccess &&
             visibleListItems.length === 0 &&
             !notShared && (
               <div className="mt-24">
@@ -350,40 +351,30 @@ export default function Bookmarks() {
               </div>
             )}
 
-          {currentView === "list" &&
-            groupedListItems.map(([month, monthItems], monthIndex) => (
-              <div key={month} className="space-y-2">
-                <h2 className="mt-8 border-b border-neutral-200 px-2.5 pb-2 text-base font-medium dark:border-neutral-800">
-                  {month}
-                </h2>
-                <div>
-                  {monthItems.map((item: ItemRecord, itemIndex: number) => {
-                    const isLastMonth =
-                      monthIndex === groupedListItems.length - 1;
-                    const isLastItemInMonth =
-                      itemIndex === monthItems.length - 1;
-                    const isLastItem = isLastMonth && isLastItemInMonth;
-
-                    return (
-                      <div
-                        key={item.id}
-                        ref={isLastItem ? lastItemElementRef : null}
-                      >
-                        <Bookmark
-                          bookmark={item}
-                          showOgImage
-                          isPublicPage
-                          folders={[]}
-                          onPreview={setPreviewItem}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          {currentView === "list" && visibleListItems.length > 0 && (
+            <div className="mt-0">
+              {visibleListItems.map((item, itemIndex) => {
+                const isLastItem = itemIndex === visibleListItems.length - 1;
+                return (
+                  <div
+                    key={item.id}
+                    ref={isLastItem ? lastItemElementRef : null}
+                  >
+                    <Bookmark
+                      bookmark={item}
+                      showOgImage={false}
+                      isPublicPage
+                      folders={[]}
+                      onPreview={setPreviewItem}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {currentView === "grid" &&
+            gridItems.isSuccess &&
             visibleGridItems.length === 0 &&
             !notShared && (
               <div className="mt-24">
@@ -392,11 +383,13 @@ export default function Bookmarks() {
             )}
 
           {currentView === "grid" && visibleGridItems.length > 0 && (
-            <div className="mt-4 md:pb-24">
+            <div className="mt-10 md:pb-24">
               <MasonryGrid
                 assets={visibleGridItems}
-                columns={3}
+                columns={4}
                 isPublic
+                moreSpace={true}
+                rounded={false}
                 onPreview={setPreviewItem}
               />
               <div ref={lastItemElementRef} className="h-1" />
@@ -404,6 +397,7 @@ export default function Bookmarks() {
           )}
 
           {currentView === "canvas" &&
+            canvasItems.isSuccess &&
             visibleCanvasItems.length === 0 &&
             !notShared && (
               <div className="mt-24">
@@ -412,7 +406,7 @@ export default function Bookmarks() {
             )}
 
           {currentView === "canvas" && visibleCanvasItems.length > 0 && (
-            <div className="mt-4 min-h-[90vh]">
+            <div className="h-[88vh]">
               <CanvasView
                 assets={visibleCanvasItems}
                 rounded

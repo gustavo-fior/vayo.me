@@ -1,5 +1,10 @@
 await Bun.build({
-  entrypoints: ["src/background.ts", "src/popup/popup.ts", "src/content/x-tweet.ts"],
+  entrypoints: [
+    "src/background.ts",
+    "src/popup/popup.ts",
+    "src/content/x-tweet.ts",
+    "src/overlay/overlay.ts",
+  ],
   outdir: "dist",
   format: "esm",
   target: "browser",

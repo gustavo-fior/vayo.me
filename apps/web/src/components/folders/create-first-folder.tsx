@@ -5,7 +5,7 @@ import { queryClient, trpc } from "@/utils/trpc";
 import { useMutation } from "@tanstack/react-query";
 import { FolderIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { errorToast } from "@/utils/toast";
 import {
   EmojiPicker,
   EmojiPickerContent,
@@ -33,7 +33,7 @@ export const CreateFirstFolder = ({
         setSelectedFolder({ ...data[0], totalItems: 0 });
       },
       onError: () => {
-        toast.error("Failed to create folder");
+        errorToast("Failed to create folder");
       },
     })
   );
@@ -80,13 +80,13 @@ export const CreateFirstFolder = ({
               <Button
                 variant="outline"
                 size="icon"
-                className="text-lg dark:border-input/50"
+                className="text-lg dark:bg-muted"
               >
                 {icon ? (
                   <span className="text-lg mt-[1px]">{icon}</span>
                 ) : (
-                  <span className="text-muted-foreground/50 font-normal">
-                    ?
+                  <span className="text-muted-foreground/50 font-[250]">
+                    🪴
                   </span>
                 )}
               </Button>
