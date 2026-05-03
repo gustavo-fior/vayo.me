@@ -105,14 +105,14 @@ export const SelectFolder = ({
                   : "right-[1.9rem]"
               } flex items-center gap-2`}
             >
-              <span className="text-[11px] text-muted-foreground/50 tabular-nums">
-                {folder.totalItems}
-              </span>
               {selectedFolder?.id !== folder.id && index < 9 && (
                 <span className="flex text-[10px] items-center justify-center bg-muted/50 rounded-[3px] py-[1px] px-1 custom-shadow group-hover:bg-transparent group-hover:border-transparent tabular-nums font-mono">
                   {index + 1}
                 </span>
               )}
+              <span className="text-[11px] text-muted-foreground/50 tabular-nums">
+                {folder.totalItems}
+              </span>
             </div>
 
             {selectedFolder?.id === folder.id && (
