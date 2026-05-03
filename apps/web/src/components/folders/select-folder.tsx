@@ -96,6 +96,9 @@ export const SelectFolder = ({
             <div className="flex items-center gap-2.5">
               {folder.icon && <span className="text-sm">{folder.icon}</span>}
               <span className="text-sm">{folder.name}</span>
+              <span className="text-[11px] text-muted-foreground/50 tabular-nums mt-0.5">
+                {folder.totalItems}
+              </span>
             </div>
 
             <div
@@ -110,9 +113,6 @@ export const SelectFolder = ({
                   {index + 1}
                 </span>
               )}
-              <span className="text-[11px] text-muted-foreground/50 tabular-nums">
-                {folder.totalItems}
-              </span>
             </div>
 
             {selectedFolder?.id === folder.id && (
