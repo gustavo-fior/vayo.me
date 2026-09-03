@@ -34,6 +34,14 @@ type OverlayMode =
 const HOST_ID = "vayo-overlay-root";
 const LAST_FOLDER_KEY = "lastFolder";
 
+let renderSeq = 0;
+
+// True when a newer render started after `seq` was captured, or the overlay
+// was dismissed — the caller must stop touching the shell.
+function isStale(seq: number) {
+  return seq !== renderSeq || !shellEl;
+}
+
 let host: HTMLDivElement | null = null;
 let shadow: ShadowRoot | null = null;
 let shellEl: HTMLDivElement | null = null;
@@ -407,18 +415,19 @@ function getLastFolder(): Promise<string | null> {
 
 async function showBookmarkScreen(mode: Extract<OverlayMode, { kind: "bookmark" }>) {
   if (!shellEl) return;
+  const seq = renderSeq;
   const startHeight = shellEl.offsetHeight;
   clearShell();
 
   if (!foldersCache) {
     showLoading();
     const res = await api<Folder[]>({ action: "getFolders" });
+    if (isStale(seq)) return;
     if (!res.success) {
       showError("Failed to load folders.");
       return;
     }
     foldersCache = res.data;
-    if (!shellEl) return;
     clearShell();
   }
 
@@ -454,6 +463,7 @@ async function showBookmarkScreen(mode: Extract<OverlayMode, { kind: "bookmark" 
   shellEl.appendChild(field);
 
   const lastFolder = await getLastFolder();
+  if (isStale(seq)) return;
   if (lastFolder && foldersCache.some((f) => f.id === lastFolder)) {
     select.value = lastFolder;
   }
@@ -483,18 +493,19 @@ async function showBookmarkScreen(mode: Extract<OverlayMode, { kind: "bookmark" 
 
 async function showAssetScreen(mode: Extract<OverlayMode, { kind: "asset" }>) {
   if (!shellEl) return;
+  const seq = renderSeq;
   const startHeight = shellEl.offsetHeight;
   clearShell();
 
   if (!foldersCache) {
     showLoading();
     const res = await api<Folder[]>({ action: "getFolders" });
+    if (isStale(seq)) return;
     if (!res.success) {
       showError("Failed to load folders.");
       return;
     }
     foldersCache = res.data;
-    if (!shellEl) return;
     clearShell();
   }
 
@@ -526,6 +537,7 @@ async function showAssetScreen(mode: Extract<OverlayMode, { kind: "asset" }>) {
   shellEl.appendChild(field);
 
   const lastFolder = await getLastFolder();
+  if (isStale(seq)) return;
   if (lastFolder && foldersCache.some((f) => f.id === lastFolder)) {
     select.value = lastFolder;
   }
@@ -568,18 +580,19 @@ async function showTweetAssetsScreen(
     return;
   }
 
+  const seq = renderSeq;
   const startHeight = shellEl.offsetHeight;
   clearShell();
 
   if (!foldersCache) {
     showLoading();
     const res = await api<Folder[]>({ action: "getFolders" });
+    if (isStale(seq)) return;
     if (!res.success) {
       showError("Failed to load folders.");
       return;
     }
     foldersCache = res.data;
-    if (!shellEl) return;
     clearShell();
   }
 
@@ -640,6 +653,7 @@ async function showTweetAssetsScreen(
   shellEl.appendChild(field);
 
   const lastFolder = await getLastFolder();
+  if (isStale(seq)) return;
   if (lastFolder && foldersCache.some((f) => f.id === lastFolder)) {
     select.value = lastFolder;
   }
@@ -685,10 +699,14 @@ async function showTweetAssetsScreen(
 }
 
 async function render(mode: OverlayMode, isInitial: boolean) {
+  const seq = ++renderSeq;
   ensureMounted();
   if (isInitial) {
     showLoading();
     const session = await api<{ user: unknown } | null>({ action: "getSession" });
+    // A newer render (e.g. an update from the background) landed while we
+    // were awaiting — don't clobber it with this stale mode.
+    if (isStale(seq)) return;
     if (!session.success) {
       showError("Could not check sign-in status.");
       return;

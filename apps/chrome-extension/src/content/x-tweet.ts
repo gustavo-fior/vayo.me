@@ -1,21 +1,28 @@
 let lastTarget: HTMLElement | null = null;
 
-document.addEventListener("contextmenu", (e) => {
-  lastTarget = e.target as HTMLElement;
-});
+// Avoid duplicate listeners if the script is injected twice (manifest
+// declaration + programmatic re-injection from the background script).
+const w = window as unknown as { __vayoTweetLoaded?: boolean };
+if (!w.__vayoTweetLoaded) {
+  w.__vayoTweetLoaded = true;
 
-// Also capture on mousedown (right-click) — fires before contextmenu
-document.addEventListener("mousedown", (e) => {
-  if (e.button === 2) {
+  document.addEventListener("contextmenu", (e) => {
     lastTarget = e.target as HTMLElement;
-  }
-});
+  });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === "EXTRACT_TWEET_ASSETS") {
-    sendResponse(extractTweetAssets());
-  }
-});
+  // Also capture on mousedown (right-click) — fires before contextmenu
+  document.addEventListener("mousedown", (e) => {
+    if (e.button === 2) {
+      lastTarget = e.target as HTMLElement;
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === "EXTRACT_TWEET_ASSETS") {
+      sendResponse(extractTweetAssets());
+    }
+  });
+}
 
 type AssetResult =
   | { error: string }

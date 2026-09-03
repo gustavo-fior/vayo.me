@@ -66,10 +66,15 @@ async function ensureOverlayInjected(tabId: number): Promise<boolean> {
   }
 }
 
-async function showOverlay(tabId: number, mode: OverlayMode) {
+async function showOverlay(tabId: number, mode: OverlayMode): Promise<boolean> {
   const ok = await ensureOverlayInjected(tabId);
-  if (!ok) return; // restricted page (chrome://, web store, strict CSP) — silently skip
-  await chrome.tabs.sendMessage(tabId, { type: "VAYO_OVERLAY_SHOW", mode });
+  if (!ok) return false; // restricted page (chrome://, web store, strict CSP) — silently skip
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "VAYO_OVERLAY_SHOW", mode });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function updateOverlay(tabId: number, mode: OverlayMode) {
@@ -80,10 +85,18 @@ async function updateOverlay(tabId: number, mode: OverlayMode) {
   }
 }
 
+// The syndication API validates its token param, which is derived from the
+// tweet ID via this (publicly known) formula — token=0 gets rejected.
+function syndicationToken(tweetId: string): string {
+  return ((Number(tweetId) / 1e15) * Math.PI)
+    .toString(36)
+    .replace(/(0+|\.)/g, "");
+}
+
 async function fetchVideoUrls(tweetId: string): Promise<string[]> {
   try {
     const res = await fetch(
-      `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&token=0`
+      `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&token=${syndicationToken(tweetId)}`
     );
     if (!res.ok) return [];
 
@@ -114,14 +127,18 @@ async function fetchVideoUrls(tweetId: string): Promise<string[]> {
 
 async function sendToTweetExtractor(tabId: number, message: unknown) {
   try {
-    return await chrome.tabs.sendMessage(tabId, message);
+    const res = await chrome.tabs.sendMessage(tabId, message);
+    // An undefined response means another content script (the overlay) is
+    // listening in this tab but x-tweet.js isn't — inject it and resend.
+    if (res !== undefined) return res;
   } catch {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["dist/content/x-tweet.js"],
-    });
-    return await chrome.tabs.sendMessage(tabId, message);
+    // no listeners in the tab at all — inject below
   }
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["dist/content/x-tweet.js"],
+  });
+  return await chrome.tabs.sendMessage(tabId, message);
 }
 
 async function authedHeaders(
@@ -317,15 +334,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     const tabId = tab.id;
     const sourcePageUrl = info.pageUrl ?? tab.url ?? null;
 
-    // Show overlay in loading state immediately, then update when extraction
-    // completes.
-    void showOverlay(tabId, {
-      kind: "tweet-assets",
-      sourcePageUrl,
-      state: { status: "loading" },
-    });
-
     void (async () => {
+      // Show the overlay in its loading state and wait until it is actually
+      // mounted before extracting. Extraction can finish faster than overlay
+      // injection, and an update sent to a tab with no overlay listener is
+      // lost — leaving the spinner up forever.
+      const shown = await showOverlay(tabId, {
+        kind: "tweet-assets",
+        sourcePageUrl,
+        state: { status: "loading" },
+      });
+      if (!shown) return;
+
       try {
         const response = await sendToTweetExtractor(tabId, {
           type: "EXTRACT_TWEET_ASSETS",
