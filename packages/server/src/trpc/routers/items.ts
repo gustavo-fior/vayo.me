@@ -1,9 +1,9 @@
 import { db } from "@/db";
 import { folder, item } from "@/db/schema";
 import { updateLinkSummary } from "@/lib/get-summary";
-import { getR2, getR2Bucket } from "@/lib/r2";
+import { getR2, getR2Bucket, getR2PublicUrl } from "@/lib/r2";
 import { getUrlMetadata } from "@/lib/url-metadata";
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
@@ -58,6 +58,26 @@ async function getNextPlacement(folderId: string) {
         ? Math.max(...existing.map((entry) => entry.canvasZIndex)) + 1
         : 0,
   };
+}
+
+function getR2KeyFromUrl(url: string | null) {
+  const r2PublicUrl = process.env.R2_PUBLIC_URL || "";
+  if (!url || !r2PublicUrl || !url.startsWith(r2PublicUrl)) {
+    return null;
+  }
+
+  return url.slice(r2PublicUrl.length + 1);
+}
+
+async function copyR2Object(sourceKey: string, targetKey: string) {
+  const bucket = getR2Bucket();
+  await getR2().send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      CopySource: `${bucket}/${encodeURIComponent(sourceKey).replace(/%2F/g, "/")}`,
+      Key: targetKey,
+    })
+  );
 }
 
 async function ensureOwnedFolder(folderId: string, userId: string) {
@@ -340,6 +360,69 @@ export const itemsRouter = router({
         touchFolder(foundItem.folderId),
         touchFolder(input.folderId),
       ]);
+    }),
+
+  copyItemToFolder: protectedProcedure
+    .input(z.object({ itemId: z.string(), folderId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.session.user.id;
+      const [foundItem] = await Promise.all([
+        db.query.item.findFirst({
+          where: eq(item.id, input.itemId),
+        }),
+        ensureOwnedFolder(input.folderId, userId),
+      ]);
+
+      if (!foundItem) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+      }
+
+      await ensureOwnedFolder(foundItem.folderId, userId);
+
+      const placement = await getNextPlacement(input.folderId);
+      const newItemId = uuidv7();
+
+      // Media stored in R2 gets its own object so deleting either item
+      // never removes the file the other one still points to.
+      let url = foundItem.url;
+      const sourceKey =
+        foundItem.type === "image" || foundItem.type === "video"
+          ? getR2KeyFromUrl(foundItem.url)
+          : null;
+
+      if (sourceKey) {
+        const ext = sourceKey.split(".").pop() || "bin";
+        const targetKey = `${userId}/${input.folderId}/${newItemId}.${ext}`;
+        await copyR2Object(sourceKey, targetKey);
+        url = getR2PublicUrl(targetKey);
+      }
+
+      const [createdItem] = await db
+        .insert(item)
+        .values({
+          id: newItemId,
+          folderId: input.folderId,
+          type: foundItem.type,
+          title: foundItem.title,
+          url,
+          color: foundItem.color,
+          faviconUrl: foundItem.faviconUrl,
+          ogImageUrl: foundItem.ogImageUrl,
+          description: foundItem.description,
+          summary: foundItem.summary,
+          mimeType: foundItem.mimeType,
+          fileSize: foundItem.fileSize,
+          width: foundItem.width,
+          height: foundItem.height,
+          originalFilename: foundItem.originalFilename,
+          gridSortOrder: placement.nextGridSortOrder,
+          canvasZIndex: placement.nextCanvasZIndex,
+        })
+        .returning();
+
+      await touchFolder(input.folderId);
+
+      return createdItem;
     }),
 
   deleteItem: protectedProcedure

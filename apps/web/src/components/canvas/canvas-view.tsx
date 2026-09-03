@@ -14,6 +14,7 @@ import {
   CopyIcon,
   ExternalLink,
   FolderOpenIcon,
+  FolderPlusIcon,
   Globe,
   ImageIcon,
   Palette,
@@ -193,6 +194,7 @@ export function CanvasView({
   rounded = true,
   onDelete,
   onMove,
+  onCopy,
   onUpdateZIndex,
   onPreview,
   pendingAssetIds,
@@ -204,6 +206,7 @@ export function CanvasView({
   rounded?: boolean;
   onDelete?: (asset: ItemRecord) => void;
   onMove?: (asset: ItemRecord, folderId: string) => void;
+  onCopy?: (asset: ItemRecord, folderId: string) => void;
   onUpdateZIndex?: (
     updates: Array<{ id: string; canvasZIndex: number }>
   ) => void;
@@ -1043,6 +1046,39 @@ export function CanvasView({
                                 <div key={folder.id}>
                                   <ContextMenuItem
                                     onClick={() => onMove(asset, folder.id)}
+                                  >
+                                    {folder.icon && <span>{folder.icon}</span>}
+                                    {folder.name}
+                                  </ContextMenuItem>
+                                  {currentIndex !==
+                                    availableFolders.length - 1 && (
+                                    <ContextMenuSeparator />
+                                  )}
+                                </div>
+                              ))}
+                            </ContextMenuSubContent>
+                          </ContextMenuSub>
+                        </>
+                      )}
+
+                    {onCopy &&
+                      !isActionPending &&
+                      availableFolders.length > 0 && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuSub>
+                            <ContextMenuSubTrigger
+                              inset
+                              className="justify-start cursor-pointer"
+                            >
+                              <FolderPlusIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
+                              Copy to
+                            </ContextMenuSubTrigger>
+                            <ContextMenuSubContent className="w-44">
+                              {availableFolders.map((folder, currentIndex) => (
+                                <div key={folder.id}>
+                                  <ContextMenuItem
+                                    onClick={() => onCopy(asset, folder.id)}
                                   >
                                     {folder.icon && <span>{folder.icon}</span>}
                                     {folder.name}

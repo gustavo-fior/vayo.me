@@ -5,6 +5,7 @@ import {
   CopyIcon,
   ExternalLink,
   FolderOpenIcon,
+  FolderPlusIcon,
   Globe,
   ImageIcon,
   Palette,
@@ -126,6 +127,7 @@ export function AssetCard({
   folders = [],
   onDelete,
   onMove,
+  onCopy,
   onPreview,
   isPublic = false,
   isActionPending = false,
@@ -136,6 +138,7 @@ export function AssetCard({
   folders?: FolderRecord[];
   onDelete?: (asset: CanvasAssetType) => void;
   onMove?: (asset: CanvasAssetType, folderId: string) => void;
+  onCopy?: (asset: CanvasAssetType, folderId: string) => void;
   onPreview?: (asset: CanvasAssetType) => void;
   isPublic?: boolean;
   isActionPending?: boolean;
@@ -298,6 +301,34 @@ export function AssetCard({
                 {availableFolders.map((folder, index) => (
                   <div key={folder.id}>
                     <ContextMenuItem onClick={() => onMove(asset, folder.id)}>
+                      {folder.icon && <span>{folder.icon}</span>}
+                      {folder.name}
+                    </ContextMenuItem>
+                    {index !== availableFolders.length - 1 && (
+                      <ContextMenuSeparator />
+                    )}
+                  </div>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
+
+        {onCopy && !isActionPending && availableFolders.length > 0 && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuSub>
+              <ContextMenuSubTrigger
+                inset
+                className="justify-start cursor-pointer"
+              >
+                <FolderPlusIcon className="size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20 mr-2" />
+                Copy to
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-44">
+                {availableFolders.map((folder, index) => (
+                  <div key={folder.id}>
+                    <ContextMenuItem onClick={() => onCopy(asset, folder.id)}>
                       {folder.icon && <span>{folder.icon}</span>}
                       {folder.name}
                     </ContextMenuItem>

@@ -12,7 +12,7 @@ type PendingActionBase = {
 
 export type PendingItemAction = PendingActionBase & {
   entity: "item";
-  operation: "delete" | "move";
+  operation: "delete" | "move" | "copy";
   item: ItemRecord;
 };
 
@@ -43,7 +43,8 @@ export function deriveVisibleItems(
     actions
       .filter(
         (action) =>
-          action.operation === "delete" || action.sourceFolderId === folderId
+          action.operation === "delete" ||
+          (action.operation === "move" && action.sourceFolderId === folderId)
       )
       .map((action) => action.item.id)
   );
@@ -51,7 +52,8 @@ export function deriveVisibleItems(
   const movedIntoFolder = actions
     .filter(
       (action) =>
-        action.operation === "move" && action.targetFolderId === folderId
+        (action.operation === "move" || action.operation === "copy") &&
+        action.targetFolderId === folderId
     )
     .sort((a, b) => b.stagedAt - a.stagedAt)
     .map((action) => ({

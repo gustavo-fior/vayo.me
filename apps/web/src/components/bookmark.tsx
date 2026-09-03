@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   CopyIcon,
   FolderOpenIcon,
+  FolderPlusIcon,
   Globe,
   ImageIcon,
   Palette,
@@ -39,6 +40,7 @@ export const Bookmark = ({
   folders,
   onDelete,
   onMove,
+  onCopy,
   onPreview,
   isActionPending = false,
 }: {
@@ -48,6 +50,7 @@ export const Bookmark = ({
   folders: FolderRecord[];
   onDelete?: (bookmark: ItemRecord) => void;
   onMove?: (bookmark: ItemRecord, folderId: string) => void;
+  onCopy?: (bookmark: ItemRecord, folderId: string) => void;
   onPreview?: (bookmark: ItemRecord) => void;
   isActionPending?: boolean;
 }) => {
@@ -458,6 +461,38 @@ export const Bookmark = ({
                     <div key={folder.id}>
                       <ContextMenuItem
                         onClick={() => onMove(bookmark, folder.id)}
+                      >
+                        {folder.icon && <span>{folder.icon}</span>}
+                        {folder.name}
+                      </ContextMenuItem>
+                      {index !== filteredFolders.length - 1 && (
+                        <ContextMenuSeparator />
+                      )}
+                    </div>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+            </>
+          )}
+        {!isPublicPage &&
+          !isActionPending &&
+          onCopy &&
+          filteredFolders.length > 0 && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger
+                  inset
+                  className="justify-start cursor-pointer"
+                >
+                  <FolderPlusIcon className="mr-2 size-3.5 stroke-[1.5] text-neutral-500 fill-current/10 dark:fill-current/20" />
+                  Copy to
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-44">
+                  {filteredFolders.map((folder, index) => (
+                    <div key={folder.id}>
+                      <ContextMenuItem
+                        onClick={() => onCopy(bookmark, folder.id)}
                       >
                         {folder.icon && <span>{folder.icon}</span>}
                         {folder.name}

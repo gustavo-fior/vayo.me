@@ -89,6 +89,7 @@ export function CanvasFolderView({
   pendingActions = [],
   onDeleteAsset,
   onMoveAsset,
+  onCopyAsset,
 }: {
   folderId: string;
   canvasControls: CanvasControls;
@@ -96,6 +97,7 @@ export function CanvasFolderView({
   pendingActions?: PendingAssetAction[];
   onDeleteAsset?: (asset: CanvasAssetType) => void;
   onMoveAsset?: (asset: CanvasAssetType, folderId: string) => void;
+  onCopyAsset?: (asset: CanvasAssetType, folderId: string) => void;
 }) {
   const { viewMode, columns, moreSpace, rounded } = canvasControls;
 
@@ -179,6 +181,7 @@ export function CanvasFolderView({
             folders={folders}
             onDelete={onDeleteAsset}
             onMove={onMoveAsset}
+            onCopy={onCopyAsset}
             onReorder={(reorderedItems) =>
               updateGridSortOrder.mutate(
                 reorderedItems.map((item, index) => ({
@@ -200,6 +203,7 @@ export function CanvasFolderView({
           rounded={rounded}
           onDelete={onDeleteAsset}
           onMove={onMoveAsset}
+          onCopy={onCopyAsset}
           onUpdateZIndex={(updates) => updateZIndex.mutate(updates)}
           pendingAssetIds={pendingItemIds}
         />

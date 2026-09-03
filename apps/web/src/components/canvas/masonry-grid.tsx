@@ -13,6 +13,7 @@ export function MasonryGrid({
   folders = [],
   onDelete,
   onMove,
+  onCopy,
   onReorder,
   onPreview,
   isPublic = false,
@@ -26,6 +27,7 @@ export function MasonryGrid({
   folders?: FolderRecord[];
   onDelete?: (asset: CanvasAssetType) => void;
   onMove?: (asset: CanvasAssetType, folderId: string) => void;
+  onCopy?: (asset: CanvasAssetType, folderId: string) => void;
   onReorder?: (reorderedAssets: CanvasAssetType[]) => void;
   onPreview?: (asset: CanvasAssetType) => void;
   isPublic?: boolean;
@@ -153,6 +155,7 @@ export function MasonryGrid({
                 folders={folders}
                 onDelete={onDelete}
                 onMove={onMove}
+                onCopy={onCopy}
                 onPreview={onPreview}
                 isPublic={isPublic}
                 isActionPending={pendingAssetIds?.has(asset.id)}

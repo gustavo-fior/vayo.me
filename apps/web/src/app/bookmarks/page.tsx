@@ -515,6 +515,9 @@ export default function Bookmarks() {
   const moveItemToFolder = useMutation(
     trpc.items.moveItemToFolder.mutationOptions({})
   );
+  const copyItemToFolder = useMutation(
+    trpc.items.copyItemToFolder.mutationOptions({})
+  );
   const updateGridSortOrder = useMutation(
     trpc.items.updateGridSortOrder.mutationOptions({
       onSettled: (_result, _error, updates) => {
@@ -654,6 +657,11 @@ export default function Bookmarks() {
       try {
         if (action.operation === "delete") {
           await deleteItem.mutateAsync(action.item.id);
+        } else if (action.operation === "copy" && action.targetFolderId) {
+          await copyItemToFolder.mutateAsync({
+            itemId: action.item.id,
+            folderId: action.targetFolderId,
+          });
         } else if (action.targetFolderId) {
           await moveItemToFolder.mutateAsync({
             itemId: action.item.id,
@@ -675,12 +683,15 @@ export default function Bookmarks() {
         errorToast(
           action.operation === "delete"
             ? "Failed to delete item"
+            : action.operation === "copy"
+            ? "Failed to copy item"
             : "Failed to move item"
         );
       }
     },
     [
       clearPendingActionTimer,
+      copyItemToFolder,
       deleteItem,
       invalidateFolderData,
       moveItemToFolder,
@@ -708,7 +719,11 @@ export default function Bookmarks() {
         () => (
           <UndoToast
             message={
-              action.operation === "delete" ? "Item deleted" : "Item moved"
+              action.operation === "delete"
+                ? "Item deleted"
+                : action.operation === "copy"
+                ? "Item copied"
+                : "Item moved"
             }
             onUndo={() => undoPendingAction(nextAction.id)}
           />
@@ -1272,6 +1287,16 @@ export default function Bookmarks() {
                                   targetFolderId: folderId,
                                 })
                               }
+                              onCopy={(nextItem, folderId) =>
+                                stagePendingAction({
+                                  id: crypto.randomUUID(),
+                                  entity: "item",
+                                  operation: "copy",
+                                  item: nextItem,
+                                  sourceFolderId: nextItem.folderId,
+                                  targetFolderId: folderId,
+                                })
+                              }
                               onPreview={setPreviewItem}
                               isActionPending={pendingItemIds.has(item.id)}
                             />
@@ -1317,6 +1342,16 @@ export default function Bookmarks() {
                         id: crypto.randomUUID(),
                         entity: "item",
                         operation: "move",
+                        item,
+                        sourceFolderId: item.folderId,
+                        targetFolderId: folderId,
+                      })
+                    }
+                    onCopy={(item, folderId) =>
+                      stagePendingAction({
+                        id: crypto.randomUUID(),
+                        entity: "item",
+                        operation: "copy",
                         item,
                         sourceFolderId: item.folderId,
                         targetFolderId: folderId,
@@ -1369,6 +1404,16 @@ export default function Bookmarks() {
                       id: crypto.randomUUID(),
                       entity: "item",
                       operation: "move",
+                      item,
+                      sourceFolderId: item.folderId,
+                      targetFolderId: folderId,
+                    })
+                  }
+                  onCopy={(item, folderId) =>
+                    stagePendingAction({
+                      id: crypto.randomUUID(),
+                      entity: "item",
+                      operation: "copy",
                       item,
                       sourceFolderId: item.folderId,
                       targetFolderId: folderId,
