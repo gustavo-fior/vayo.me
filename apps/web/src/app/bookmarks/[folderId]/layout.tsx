@@ -43,6 +43,14 @@ export async function generateMetadata(
         title: folder.name,
         description: "A home for your most amazing discoveries.",
         url: `https://vayo.me/bookmarks/${folderId}`,
+        images: [
+          {
+            url: getFaviconForFolder(folder.icon),
+            width: 512,
+            height: 512,
+            alt: folder.name,
+          },
+        ],
       },
     };
   } catch (error) {
