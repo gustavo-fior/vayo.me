@@ -32,6 +32,14 @@ export const metadata: Metadata = {
     url: "https://vayo.me",
     siteName: "VAYØ",
     locale: "en_US",
+    images: [
+      {
+        url: "/favicon.ico",
+        width: 512,
+        height: 512,
+        alt: "VAYØ",
+      },
+    ],
   },
 };
 
